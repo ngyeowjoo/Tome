@@ -32,34 +32,35 @@ html, body, [class*="css"] {
 }
 
 /* Sidebar */
-.css-1d391kg, [data-testid="stSidebar"] {
-    background: #111111 !important;
-    border-right: 1px solid #2a2a2a;
+[data-testid="stSidebar"] {
+    background: #F5F2EB !important;
+    border-right: 1px solid #E0DAD0;
 }
 
 /* Main bg */
 .stApp {
-    background: #0F0F0F;
+    background: #FAFAF7;
 }
 
 /* Metric cards */
 .metric-card {
-    background: #1A1A1A;
-    border: 1px solid #2a2a2a;
+    background: #FFFFFF;
+    border: 1px solid #E5E0D8;
     border-radius: 8px;
     padding: 1.2rem 1.5rem;
     text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 .metric-value {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 2rem;
     font-weight: 600;
-    color: #E8C547;
+    color: #C4992A;
     line-height: 1;
 }
 .metric-label {
     font-size: 0.75rem;
-    color: #888;
+    color: #999;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     margin-top: 0.4rem;
@@ -67,18 +68,19 @@ html, body, [class*="css"] {
 
 /* Answer card */
 .answer-card {
-    background: #1A1A1A;
-    border: 1px solid #333;
-    border-left: 3px solid #E8C547;
+    background: #FFFFFF;
+    border: 1px solid #E5E0D8;
+    border-left: 3px solid #C4992A;
     border-radius: 8px;
     padding: 1.5rem;
     margin: 1rem 0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
 /* Source card */
 .source-card {
-    background: #141414;
-    border: 1px solid #252525;
+    background: #FAFAF7;
+    border: 1px solid #E8E3DA;
     border-radius: 6px;
     padding: 0.9rem 1.1rem;
     margin: 0.5rem 0;
@@ -87,32 +89,33 @@ html, body, [class*="css"] {
 .source-title {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.75rem;
-    color: #E8C547;
+    color: #C4992A;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     margin-bottom: 0.3rem;
 }
 
 /* Confidence badge */
-.conf-high { color: #4ade80; font-weight: 600; }
-.conf-medium { color: #facc15; font-weight: 600; }
-.conf-low { color: #f87171; font-weight: 600; }
+.conf-high { color: #16a34a; font-weight: 600; }
+.conf-medium { color: #d97706; font-weight: 600; }
+.conf-low { color: #dc2626; font-weight: 600; }
 
 /* FAQ card */
 .faq-card {
-    background: #1A1A1A;
-    border: 1px solid #252525;
+    background: #FFFFFF;
+    border: 1px solid #E5E0D8;
     border-radius: 8px;
     padding: 1rem 1.2rem;
     margin: 0.6rem 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .faq-q {
     font-weight: 600;
-    color: #F0EDE6;
+    color: #1A1A1A;
     margin-bottom: 0.4rem;
 }
 .faq-a {
-    color: #AAA;
+    color: #555;
     font-size: 0.9rem;
     line-height: 1.6;
 }
@@ -122,12 +125,12 @@ html, body, [class*="css"] {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 1.6rem;
     font-weight: 600;
-    color: #E8C547;
+    color: #C4992A;
     letter-spacing: -0.02em;
 }
 .tome-sub {
     font-size: 0.7rem;
-    color: #555;
+    color: #AAA;
     text-transform: uppercase;
     letter-spacing: 0.15em;
     margin-top: -4px;
@@ -135,23 +138,23 @@ html, body, [class*="css"] {
 
 /* Search box */
 .stTextInput > div > div > input {
-    background: #1A1A1A !important;
-    border: 1px solid #333 !important;
+    background: #FFFFFF !important;
+    border: 1px solid #D8D3CA !important;
     border-radius: 8px !important;
     font-family: 'IBM Plex Sans', sans-serif !important;
     font-size: 1rem !important;
-    color: #F0EDE6 !important;
+    color: #1A1A1A !important;
     padding: 0.75rem 1rem !important;
 }
 .stTextInput > div > div > input:focus {
-    border-color: #E8C547 !important;
-    box-shadow: 0 0 0 2px rgba(232, 197, 71, 0.15) !important;
+    border-color: #C4992A !important;
+    box-shadow: 0 0 0 2px rgba(196, 153, 42, 0.15) !important;
 }
 
 /* Buttons */
 .stButton > button {
-    background: #E8C547 !important;
-    color: #0F0F0F !important;
+    background: #C4992A !important;
+    color: #FFFFFF !important;
     border: none !important;
     border-radius: 6px !important;
     font-family: 'IBM Plex Mono', monospace !important;
@@ -162,7 +165,7 @@ html, body, [class*="css"] {
     transition: all 0.15s ease !important;
 }
 .stButton > button:hover {
-    background: #f0d060 !important;
+    background: #A87E20 !important;
     transform: translateY(-1px) !important;
 }
 
@@ -172,8 +175,8 @@ html, body, [class*="css"] {
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.15em;
-    color: #555;
-    border-bottom: 1px solid #222;
+    color: #AAA;
+    border-bottom: 1px solid #E5E0D8;
     padding-bottom: 0.5rem;
     margin-bottom: 1rem;
 }
@@ -181,8 +184,8 @@ html, body, [class*="css"] {
 /* Tag badge */
 .tag {
     display: inline-block;
-    background: #222;
-    border: 1px solid #333;
+    background: #F0EDE6;
+    border: 1px solid #DDD8CE;
     border-radius: 4px;
     padding: 0.15rem 0.5rem;
     font-family: 'IBM Plex Mono', monospace;
@@ -192,12 +195,12 @@ html, body, [class*="css"] {
 }
 
 /* Dividers */
-hr { border-color: #222 !important; }
+hr { border-color: #E5E0D8 !important; }
 
 /* Tab styling */
 .stTabs [data-baseweb="tab-list"] {
     background: transparent;
-    border-bottom: 1px solid #222;
+    border-bottom: 1px solid #E5E0D8;
     gap: 0;
 }
 .stTabs [data-baseweb="tab"] {
@@ -205,14 +208,14 @@ hr { border-color: #222 !important; }
     font-size: 0.75rem !important;
     text-transform: uppercase !important;
     letter-spacing: 0.1em !important;
-    color: #666 !important;
+    color: #AAA !important;
     background: transparent !important;
     border-radius: 0 !important;
     padding: 0.6rem 1.2rem !important;
 }
 .stTabs [aria-selected="true"] {
-    color: #E8C547 !important;
-    border-bottom: 2px solid #E8C547 !important;
+    color: #C4992A !important;
+    border-bottom: 2px solid #C4992A !important;
 }
 
 /* Expander */
@@ -224,8 +227,8 @@ hr { border-color: #222 !important; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #111; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-track { background: #F0EDE6; }
+::-webkit-scrollbar-thumb { background: #CCC; border-radius: 3px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -263,7 +266,7 @@ with st.sidebar:
     faq_count = len(db.get_all_faqs())
 
     st.markdown(f"""
-    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: #666; line-height: 2;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: #888; line-height: 2;">
     📄 {doc_count} document{'s' if doc_count != 1 else ''}<br>
     🧩 {chunk_count} chunk{'s' if chunk_count != 1 else ''} indexed<br>
     ❓ {faq_count} FAQ{'s' if faq_count != 1 else ''}
@@ -338,7 +341,7 @@ if nav == "🔍 Search":
                     ◆ {conf_label} CONFIDENCE ({conf_score}%)
                 </span>
             </div>
-            <div style="color:#F0EDE6; line-height:1.7; font-size:0.95rem;">
+            <div style="color:#1A1A1A; line-height:1.7; font-size:0.95rem;">
                 {result['answer'].replace(chr(10), '<br>')}
             </div>
         </div>
@@ -361,7 +364,7 @@ if nav == "🔍 Search":
                     st.session_state.feedback_given = True
                     st.rerun()
         else:
-            st.markdown('<p style="font-family:\'IBM Plex Mono\',monospace; font-size:0.75rem; color:#4ade80;">✓ Feedback recorded — thank you</p>', unsafe_allow_html=True)
+            st.markdown('<p style="font-family:\'IBM Plex Mono\',monospace; font-size:0.75rem; color:#16a34a;">✓ Feedback recorded — thank you</p>', unsafe_allow_html=True)
 
         # Sources
         if result.get("chunks"):
@@ -373,7 +376,7 @@ if nav == "🔍 Search":
                 score_pct = int(chunk.get("score", 0) * 100)
                 with st.expander(f"📄 {chunk.get('title', 'Document')}  — match {score_pct}%"):
                     st.markdown(f'{src_badge}', unsafe_allow_html=True)
-                    st.markdown(f'<div style="color:#CCC; font-size:0.875rem; line-height:1.7; margin-top:0.5rem;">{chunk["content"]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="color:#222; font-size:0.875rem; line-height:1.7; margin-top:0.5rem;">{chunk["content"]}</div>', unsafe_allow_html=True)
 
         # Matched FAQs
         if result.get("matched_faqs"):
@@ -391,9 +394,9 @@ if nav == "🔍 Search":
         # Empty state
         st.markdown("<br>" * 3, unsafe_allow_html=True)
         st.markdown("""
-        <div style="text-align:center; color:#333;">
+        <div style="text-align:center; color:#222;">
             <div style="font-size:3rem; margin-bottom:1rem;">📖</div>
-            <div style="font-family:'IBM Plex Mono',monospace; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.15em; color:#444;">
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.15em; color:#222;">
                 Start typing to search the knowledge base
             </div>
         </div>
@@ -425,7 +428,7 @@ elif nav == "📋 FAQs":
                 st.markdown(f'<div class="section-header">{cat}</div>', unsafe_allow_html=True)
                 for faq in items:
                     with st.expander(f"❓ {faq['question']}"):
-                        st.markdown(f'<div style="color:#CCC; line-height:1.7;">{faq["answer"]}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="color:#222; line-height:1.7;">{faq["answer"]}</div>', unsafe_allow_html=True)
                         if st.button(f"🗑 Delete", key=f"del_faq_{faq['id']}"):
                             db.delete_faq(faq["id"])
                             st.rerun()
@@ -459,7 +462,7 @@ elif nav == "📂 Admin":
     # ── Upload ──────────────────────────────────────────────────────────────────
     with tab1:
         st.markdown('<div class="section-header">Upload New Document</div>', unsafe_allow_html=True)
-        st.markdown('<p style="color:#888; font-size:0.85rem;">Supported formats: PDF, Word (.docx), Excel (.xlsx). Documents are chunked and indexed automatically.</p>', unsafe_allow_html=True)
+        st.markdown('<p style="color:#777; font-size:0.85rem;">Supported formats: PDF, Word (.docx), Excel (.xlsx). Documents are chunked and indexed automatically.</p>', unsafe_allow_html=True)
 
         uploaded_files = st.file_uploader(
             "Choose files",
@@ -503,10 +506,10 @@ elif nav == "📂 Admin":
             for doc in documents:
                 col1, col2, col3 = st.columns([4, 2, 1])
                 with col1:
-                    st.markdown(f'<div style="color:#F0EDE6; font-size:0.9rem; font-weight:500;">{doc["title"]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="color:#1A1A1A; font-size:0.9rem; font-weight:500;">{doc["title"]}</div>', unsafe_allow_html=True)
                     st.markdown(f'<div style="color:#555; font-size:0.75rem; font-family:\'IBM Plex Mono\',monospace;">{doc["source_file"]} · {doc["file_type"].upper()} · v{doc["version"]}</div>', unsafe_allow_html=True)
                 with col2:
-                    st.markdown(f'<div style="color:#888; font-size:0.8rem; padding-top:0.3rem;">{doc["created_at"][:10]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="color:#777; font-size:0.8rem; padding-top:0.3rem;">{doc["created_at"][:10]}</div>', unsafe_allow_html=True)
                 with col3:
                     if st.button("Delete", key=f"del_doc_{doc['id']}"):
                         db.delete_document(doc["id"])
@@ -527,7 +530,7 @@ elif nav == "📂 Admin":
             reviewed = [f for f in negative if f["reviewed"]]
 
             if unreviewed:
-                st.markdown(f'<p style="color:#f87171; font-size:0.85rem;">⚠️ {len(unreviewed)} unreviewed flagged response(s)</p>', unsafe_allow_html=True)
+                st.markdown(f'<p style="color:#dc2626; font-size:0.85rem;">⚠️ {len(unreviewed)} unreviewed flagged response(s)</p>', unsafe_allow_html=True)
                 for fb in unreviewed:
                     with st.expander(f"🔴 Query: \"{fb['query'][:60]}...\"  · {fb['timestamp'][:10]}"):
                         st.markdown(f'**Query:** {fb["query"]}')
@@ -537,7 +540,7 @@ elif nav == "📂 Admin":
                             st.rerun()
 
             if reviewed:
-                st.markdown(f'<p style="color:#888; font-size:0.8rem;">{len(reviewed)} previously reviewed</p>', unsafe_allow_html=True)
+                st.markdown(f'<p style="color:#777; font-size:0.8rem;">{len(reviewed)} previously reviewed</p>', unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -589,10 +592,10 @@ elif nav == "📊 Analytics":
                 st.markdown(f"""
                 <div style="margin-bottom:0.7rem;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:0.2rem;">
-                        <span style="color:#CCC; font-size:0.85rem;">{q['query'][:50]}</span>
-                        <span style="font-family:'IBM Plex Mono',monospace; font-size:0.75rem; color:#888;">{q['count']}x</span>
+                        <span style="color:#222; font-size:0.85rem;">{q['query'][:50]}</span>
+                        <span style="font-family:'IBM Plex Mono',monospace; font-size:0.75rem; color:#777;">{q['count']}x</span>
                     </div>
-                    <div style="background:#222; border-radius:3px; height:4px;">
+                    <div style="background:#E8E3DA; border-radius:3px; height:4px;">
                         <div style="background:#E8C547; width:{pct}%; height:4px; border-radius:3px;"></div>
                     </div>
                 </div>
@@ -602,12 +605,12 @@ elif nav == "📊 Analytics":
     with col_right:
         st.markdown('<div class="section-header">Knowledge Gaps (Zero Results)</div>', unsafe_allow_html=True)
         if not no_result_queries:
-            st.markdown('<p style="color:#4ade80; font-size:0.85rem;">✓ All queries returned results.</p>', unsafe_allow_html=True)
+            st.markdown('<p style="color:#16a34a; font-size:0.85rem;">✓ All queries returned results.</p>', unsafe_allow_html=True)
         else:
             for q in no_result_queries:
                 st.markdown(f"""
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0; border-bottom:1px solid #1e1e1e;">
-                    <span style="color:#f87171; font-size:0.85rem;">⚠ {q['query'][:50]}</span>
+                    <span style="color:#dc2626; font-size:0.85rem;">⚠ {q['query'][:50]}</span>
                     <span style="font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:#666;">{q['count']}x</span>
                 </div>
                 """, unsafe_allow_html=True)
@@ -631,12 +634,12 @@ elif nav == "📊 Analytics":
     else:
         for fb in all_fb[:10]:
             icon = "👍" if fb["rating"] == 1 else "👎"
-            color = "#4ade80" if fb["rating"] == 1 else "#f87171"
+            color = "#16a34a" if fb["rating"] == 1 else "#dc2626"
             st.markdown(f"""
             <div style="display:flex; gap:1rem; padding:0.6rem 0; border-bottom:1px solid #1a1a1a; align-items:flex-start;">
                 <span style="font-size:1rem; flex-shrink:0;">{icon}</span>
                 <div style="flex:1;">
-                    <div style="color:#CCC; font-size:0.85rem;">{fb['query'][:80]}</div>
+                    <div style="color:#222; font-size:0.85rem;">{fb['query'][:80]}</div>
                     <div style="color:#555; font-size:0.75rem; font-family:'IBM Plex Mono',monospace; margin-top:0.2rem;">{fb['timestamp'][:16]}</div>
                 </div>
             </div>
