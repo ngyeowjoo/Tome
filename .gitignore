@@ -1,0 +1,22 @@
+# Secrets — NEVER commit this
+.streamlit/secrets.toml
+
+# Data — generated at runtime
+data/tome.db
+data/faiss_index/
+data/documents/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
