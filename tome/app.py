@@ -299,10 +299,10 @@ with st.sidebar:
         st.rerun()
 
     if st.session_state.ai_mode:
-        st.markdown('<p style="font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:#C4992A;">⚡ AI mode — uses Anthropic API</p>', unsafe_allow_html=True)
-    else:
-        st.markdown('<p style="font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:#16a34a;">✓ Search mode — no API needed</p>', unsafe_allow_html=True)
+        st.markdown('<p style="font-family:IBM Plex Mono,monospace; font-size:0.7rem; color:#C4992A;">⚡ AI mode — uses Anthropic API</p>', unsafe_allow_html=True)
 
+    else:
+        st.markdown('<p style="font-family:IBM Plex Mono,monospace; font-size:0.7rem; color:#16a34a;">✓ Search mode — no API needed</p>', unsafe_allow_html=True)
 # ═══════════════════════════════════════════════════════════════════════════════
 # SEARCH PAGE
 # ═══════════════════════════════════════════════════════════════════════════════
