@@ -514,7 +514,7 @@ elif nav == "📂 Admin":
     st.markdown("## Admin — Knowledge Management")
     st.markdown('<p style="color:#666; font-size:0.9rem;">Upload documents, manage the knowledge base, review flagged responses.</p>', unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs(["Upload Documents", "Manage Documents", "QA Review"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Upload Documents", "Manage Documents", "QA Review", "View Chunks"])
 
     # ── Upload ──────────────────────────────────────────────────────────────────
     with tab1:
@@ -573,6 +573,55 @@ elif nav == "📂 Admin":
                         st.warning(f"Deleted **{doc['title']}** (note: re-run the app to rebuild FAISS index)")
                         st.rerun()
                 st.markdown('<hr style="margin:0.5rem 0;">', unsafe_allow_html=True)
+
+    # ── View Chunks ─────────────────────────────────────────────────────────────
+    with tab4:
+        st.markdown('<div class="section-header">Indexed Chunks</div>', unsafe_allow_html=True)
+        st.markdown('<p style="color:#777; font-size:0.85rem;">Browse every chunk stored in the knowledge base. Use this to verify content quality and spot bad extractions.</p>', unsafe_allow_html=True)
+
+        documents = db.get_all_documents()
+        if not documents:
+            st.info("No documents indexed yet.")
+        else:
+            # Filter by document
+            doc_options = {f"{d['title']} ({d['source_file']})": d['id'] for d in documents}
+            selected_doc_label = st.selectbox("Filter by document", ["All documents"] + list(doc_options.keys()), label_visibility="collapsed")
+
+            # Search within chunks
+            chunk_search = st.text_input("Search within chunks", placeholder="Filter chunks by keyword...", label_visibility="collapsed")
+
+            conn = __import__('sqlite3').connect(__import__('os').path.join(__import__('os').path.dirname(__file__), 'data', 'tome.db'))
+            conn.row_factory = __import__('sqlite3').Row
+
+            if selected_doc_label == "All documents":
+                rows = conn.execute("""
+                    SELECT c.id, c.chunk_index, c.content, d.title, d.source_file
+                    FROM chunks c JOIN documents d ON c.document_id = d.id
+                    ORDER BY d.title, c.chunk_index
+                """).fetchall()
+            else:
+                doc_id = doc_options[selected_doc_label]
+                rows = conn.execute("""
+                    SELECT c.id, c.chunk_index, c.content, d.title, d.source_file
+                    FROM chunks c JOIN documents d ON c.document_id = d.id
+                    WHERE c.document_id = ?
+                    ORDER BY c.chunk_index
+                """, (doc_id,)).fetchall()
+            conn.close()
+
+            chunks_data = [dict(r) for r in rows]
+
+            # Apply keyword filter
+            if chunk_search.strip():
+                term = chunk_search.lower()
+                chunks_data = [c for c in chunks_data if term in c["content"].lower()]
+
+            st.markdown(f'<p style="font-family:monospace; font-size:0.75rem; color:#888; margin-bottom:1rem;">{len(chunks_data)} chunk(s) found</p>', unsafe_allow_html=True)
+
+            for chunk in chunks_data:
+                label = f"#{chunk['chunk_index']+1}  ·  {chunk['title']}  ·  {len(chunk['content'].split())} words"
+                with st.expander(label):
+                    st.markdown(chunk["content"])
 
     # ── QA Review ───────────────────────────────────────────────────────────────
     with tab3:
