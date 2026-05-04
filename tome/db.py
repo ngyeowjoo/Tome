@@ -137,8 +137,9 @@ def get_chunks_by_ids(embedding_indices: list[int]) -> list[dict]:
 def get_all_chunks() -> list[dict]:
     conn = get_connection()
     rows = conn.execute(
-        """SELECT c.id, c.content, c.embedding_index, d.title
-           FROM chunks c JOIN documents d ON c.document_id = d.id"""
+        """SELECT c.id, c.content, c.embedding_index, c.chunk_index, c.document_id, d.title
+           FROM chunks c JOIN documents d ON c.document_id = d.id
+           ORDER BY d.title, c.chunk_index"""
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
