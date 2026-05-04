@@ -590,26 +590,13 @@ elif nav == "📂 Admin":
             # Search within chunks
             chunk_search = st.text_input("Search within chunks", placeholder="Filter chunks by keyword...", label_visibility="collapsed")
 
-            conn = __import__('sqlite3').connect(__import__('os').path.join(__import__('os').path.dirname(__file__), 'data', 'tome.db'))
-            conn.row_factory = __import__('sqlite3').Row
+            all_chunks = db.get_all_chunks()
 
-            if selected_doc_label == "All documents":
-                rows = conn.execute("""
-                    SELECT c.id, c.chunk_index, c.content, d.title, d.source_file
-                    FROM chunks c JOIN documents d ON c.document_id = d.id
-                    ORDER BY d.title, c.chunk_index
-                """).fetchall()
-            else:
+            if selected_doc_label != "All documents":
                 doc_id = doc_options[selected_doc_label]
-                rows = conn.execute("""
-                    SELECT c.id, c.chunk_index, c.content, d.title, d.source_file
-                    FROM chunks c JOIN documents d ON c.document_id = d.id
-                    WHERE c.document_id = ?
-                    ORDER BY c.chunk_index
-                """, (doc_id,)).fetchall()
-            conn.close()
+                all_chunks = [c for c in all_chunks if c.get("document_id") == doc_id]
 
-            chunks_data = [dict(r) for r in rows]
+            chunks_data = all_chunks
 
             # Apply keyword filter
             if chunk_search.strip():
