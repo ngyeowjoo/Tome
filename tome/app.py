@@ -366,14 +366,15 @@ def _format_answer_bullets(text):
 
 
 def _highlight_matching_words(text, query):
-    """Highlight words from query that appear in text."""
+    """Highlight matching words with yellow background and bold."""
     import re
     query_words = set(re.findall(r'\w+', query.lower()))
     
     def replace_word(match):
         word = match.group(0)
         if word.lower() in query_words:
-            return f"**{word}**"  # Bold for highlight
+            # Return HTML with yellow highlight and bold
+            return f"<mark style='background-color:#ffeb3b; font-weight:bold; padding:0 2px;'>{word}</mark>"
         return word
     
     highlighted = re.sub(r'\b\w+\b', replace_word, text)
@@ -399,10 +400,6 @@ if nav == "🔍 Search":
     with col2:
         search_clicked = st.button("Search →", use_container_width=True)
 
-    # Show "typing..." state immediately when query changes
-    if query and query != st.session_state.last_query and not search_clicked:
-        st.markdown('<p style="color:#999; font-size:0.85rem; font-style:italic;">User is typing...</p>', unsafe_allow_html=True)
-    
     if (query and query != st.session_state.last_query) or (search_clicked and query):
         st.session_state.feedback_given = False
         st.session_state.last_query = query
@@ -485,11 +482,11 @@ if nav == "🔍 Search":
                         if answer:
                             formatted = _format_answer_bullets(answer)
                             highlighted = _highlight_matching_words(formatted, st.session_state.last_query)
-                            st.markdown(highlighted)
+                            st.markdown(highlighted, unsafe_allow_html=True)
                         else:
                             formatted = _format_answer_bullets(chunk["content"])
                             highlighted = _highlight_matching_words(formatted, st.session_state.last_query)
-                            st.markdown(highlighted)
+                            st.markdown(highlighted, unsafe_allow_html=True)
                         # Source link
                         st.markdown(f'<p style="font-size:0.75rem; color:#999; margin-top:1rem; border-top:1px solid #eee; padding-top:0.5rem;">📄 Source: <strong>{chunk.get("title", "Document")}</strong></p>', unsafe_allow_html=True)
             else:
