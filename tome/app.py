@@ -338,16 +338,27 @@ def _run_ai(query):
 
 
 def _extract_qa(chunk_text):
-    """Extract question and answer from chunk."""
+    """Extract question and answer from chunk, removing markdown headings."""
+    import re
     lines_split = chunk_text.split('\n')
     question = ""
     answer_lines = []
+    
     for i, line in enumerate(lines_split):
         if line.startswith('##') or line.startswith('# '):
             question = line.lstrip('#').strip()
             answer_lines = lines_split[i+1:]
             break
-    answer = '\n'.join(answer_lines).strip()
+    
+    # Clean up the answer — remove markdown headings and empty lines
+    cleaned_answer = []
+    for line in answer_lines:
+        stripped = line.strip()
+        # Skip markdown headings and empty lines
+        if stripped and not stripped.startswith('#'):
+            cleaned_answer.append(stripped)
+    
+    answer = ' '.join(cleaned_answer).strip()
     return question, answer
 
 
