@@ -337,6 +337,19 @@ def _run_ai(query):
     return result
 
 
+def _extract_qa(chunk_text):
+    """Extract question and answer from chunk."""
+    lines_split = chunk_text.split('\n')
+    question = ""
+    answer_lines = []
+    for i, line in enumerate(lines_split):
+        if line.startswith('##') or line.startswith('# '):
+            question = line.lstrip('#').strip()
+            answer_lines = lines_split[i+1:]
+            break
+    answer = '\n'.join(answer_lines).strip()
+    return question, answer
+
 if nav == "🔍 Search":
     if st.session_state.ai_mode:
         st.markdown("## AI Answer")
@@ -428,12 +441,15 @@ if nav == "🔍 Search":
                 for chunk in chunks:
                     src_badge = '<span class="tag">semantic</span>' if chunk.get("source") == "semantic" else '<span class="tag">keyword</span>'
                     score_pct = int(chunk.get("score", 0) * 100)
-                    with st.expander(f"📄 {chunk.get('title', 'Document')}  —  {score_pct}% match"):
-                        st.markdown(f"""
-                        <div style="margin-bottom:0.6rem;">{src_badge}</div>
-                        """, unsafe_allow_html=True)
-                        # Render content as proper markdown for readability
-                        st.markdown(chunk["content"])
+                    question, answer = _extract_qa(chunk["content"])
+                    title = question if question else chunk.get('title', 'Result')
+                    with st.expander(f"❓ {title}  —  {score_pct}% match"):
+                        st.markdown(src_badge, unsafe_allow_html=True)
+                        st.markdown("")
+                        if answer:
+                            st.markdown(answer)
+                        else:
+                            st.markdown(chunk["content"])
             else:
                 for chunk in chunks[:4]:
                     src_badge = '<span class="tag">semantic</span>' if chunk.get("source") == "semantic" else '<span class="tag">keyword</span>'
