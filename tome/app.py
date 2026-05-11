@@ -350,6 +350,20 @@ def _extract_qa(chunk_text):
     answer = '\n'.join(answer_lines).strip()
     return question, answer
 
+
+def _format_answer_bullets(text):
+    """Convert answer text to bullet points by splitting on sentences."""
+    import re
+    # Split by periods, colons, or newlines
+    sentences = re.split(r'(?<=[.!?:])\s+|\n+', text.strip())
+    bullets = []
+    for s in sentences:
+        s = s.strip()
+        if len(s) > 10:  # Skip tiny fragments
+            bullets.append(f"• {s}")
+    return "\n".join(bullets)
+
+
 if nav == "🔍 Search":
     if st.session_state.ai_mode:
         st.markdown("## AI Answer")
@@ -447,10 +461,15 @@ if nav == "🔍 Search":
                     with st.expander(f"❓ {title}  —  {score_pct}% match"):
                         st.markdown(src_badge, unsafe_allow_html=True)
                         st.markdown("")
+                        # Format answer as bullet points
                         if answer:
-                            st.write(answer)
+                            formatted = _format_answer_bullets(answer)
+                            st.text(formatted)
                         else:
-                            st.write(chunk["content"])
+                            formatted = _format_answer_bullets(chunk["content"])
+                            st.text(formatted)
+                        # Source link
+                        st.markdown(f'<p style="font-size:0.75rem; color:#999; margin-top:1rem; border-top:1px solid #eee; padding-top:0.5rem;">📄 Source: <strong>{chunk.get("title", "Document")}</strong></p>', unsafe_allow_html=True)
             else:
                 for chunk in chunks[:4]:
                     src_badge = '<span class="tag">semantic</span>' if chunk.get("source") == "semantic" else '<span class="tag">keyword</span>'
