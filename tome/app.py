@@ -368,17 +368,15 @@ def _format_answer_bullets(text):
 def _highlight_matching_words(text, query):
     """Highlight matching words with yellow background and bold."""
     import re
-    query_words = set(re.findall(r'\w+', query.lower()))
-    
-    def replace_word(match):
-        word = match.group(0)
+    query_words = set(w.lower() for w in query.split())
+    words = re.findall(r'\b\w+\b', text)
+    result = text
+    for word in set(words):
         if word.lower() in query_words:
-            # Return HTML with yellow highlight and bold
-            return f"<mark style='background-color:#ffeb3b; font-weight:bold; padding:0 2px;'>{word}</mark>"
-        return word
-    
-    highlighted = re.sub(r'\b\w+\b', replace_word, text)
-    return highlighted
+            result = re.sub(r'\b' + word + r'\b', 
+                          f"<mark style='background-color:#ffeb3b; font-weight:bold; padding:0 2px;'>{word}</mark>", 
+                          result, flags=re.IGNORECASE)
+    return result
 
 
 if nav == "🔍 Search":
@@ -478,11 +476,10 @@ if nav == "🔍 Search":
                     with st.expander(f"❓ {title}  —  {score_pct}% match"):
                         st.markdown(src_badge, unsafe_allow_html=True)
                         st.markdown("")
-                        # Display with yellow highlighting
                         text_to_display = answer if answer else chunk["content"]
                         highlighted = _highlight_matching_words(text_to_display, st.session_state.last_query)
-                        st.markdown(highlighted, unsafe_allow_html=True)
-                        # Source link
+                        bullets = _format_answer_bullets(highlighted)
+                        st.markdown(bullets, unsafe_allow_html=True)
                         st.markdown(f'<p style="font-size:0.75rem; color:#999; margin-top:1rem; border-top:1px solid #eee; padding-top:0.5rem;">📄 Source: <strong>{chunk.get("title", "Document")}</strong></p>', unsafe_allow_html=True)
             else:
                 for chunk in chunks[:4]:
