@@ -448,9 +448,9 @@ if nav == "🔍 Search":
                         st.markdown(src_badge, unsafe_allow_html=True)
                         st.markdown("")
                         if answer:
-                            st.markdown(answer)
+                            st.write(answer)
                         else:
-                            st.markdown(chunk["content"])
+                            st.write(chunk["content"])
             else:
                 for chunk in chunks[:4]:
                     src_badge = '<span class="tag">semantic</span>' if chunk.get("source") == "semantic" else '<span class="tag">keyword</span>'
