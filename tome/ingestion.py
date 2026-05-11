@@ -99,17 +99,58 @@ def extract_text(file_bytes: bytes, file_type: str) -> str:
 # ── Chunking ───────────────────────────────────────────────────────────────────
 
 def chunk_text(text: str, chunk_size: int = 400, overlap: int = 50) -> list[str]:
-    """Split text into overlapping word-count chunks."""
-    words = text.split()
-    chunks = []
-    start = 0
-    while start < len(words):
-        end = min(start + chunk_size, len(words))
-        chunk = " ".join(words[start:end])
-        if len(chunk.strip()) > 20:  # skip tiny fragments
-            chunks.append(chunk.strip())
-        start += chunk_size - overlap
-    return chunks
+    """
+    Split text into chunks while respecting section boundaries.
+    - Treats # and ## headings as natural break points
+    - Treats --- as hard section dividers
+    - Falls back to word-count chunking within sections
+    """
+    import re
+    
+    # Split by hard dividers (---)
+    sections = re.split(r'\n\s*---+\s*\n', text)
+    
+    all_chunks = []
+    
+    for section in sections:
+        if not section.strip():
+            continue
+        
+        # Split section by headings (# or ##)
+        subsections = re.split(r'\n(#{1,2}\s+.+)\n', section)
+        
+        for i, subsection in enumerate(subsections):
+            if not subsection.strip():
+                continue
+            
+            # If this looks like a heading (starts with #), keep it with next content
+            is_heading = subsection.strip().startswith('#')
+            
+            if is_heading and i + 1 < len(subsections):
+                # Combine heading with its content
+                combined = subsection + "\n" + subsections[i + 1]
+                subsections[i + 1] = ""  # Mark as processed
+                subsection = combined
+            
+            if not subsection.strip():
+                continue
+            
+            # Now chunk this subsection by word count
+            words = subsection.split()
+            if len(words) < 20:
+                # If subsection is too small, keep it as-is
+                all_chunks.append(subsection.strip())
+            else:
+                # Chunk into word-count pieces
+                chunk_start = 0
+                while chunk_start < len(words):
+                    chunk_end = min(chunk_start + chunk_size, len(words))
+                    chunk = " ".join(words[chunk_start:chunk_end])
+                    if len(chunk.strip()) > 20:
+                        all_chunks.append(chunk.strip())
+                    chunk_start += chunk_size - overlap
+    
+    return all_chunks
 
 
 # ── Embedding + FAISS ──────────────────────────────────────────────────────────
