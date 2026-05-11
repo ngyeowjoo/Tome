@@ -364,6 +364,22 @@ def _format_answer_bullets(text):
     return "\n".join(bullets)
 
 
+
+def _highlight_matching_words(text, query):
+    """Highlight words from query that appear in text."""
+    import re
+    query_words = set(re.findall(r'\w+', query.lower()))
+    
+    def replace_word(match):
+        word = match.group(0)
+        if word.lower() in query_words:
+            return f"**{word}**"  # Bold for highlight
+        return word
+    
+    highlighted = re.sub(r'\b\w+\b', replace_word, text)
+    return highlighted
+
+
 if nav == "🔍 Search":
     if st.session_state.ai_mode:
         st.markdown("## AI Answer")
@@ -376,13 +392,17 @@ if nav == "🔍 Search":
     with col1:
         query = st.text_input(
             "Search query",
-            placeholder="e.g. How do I process a refund for a cancelled subscription?",
+            placeholder="e.g. I have forgotten my CPF Investment Account Number.",
             label_visibility="collapsed",
             key="search_input",
         )
     with col2:
         search_clicked = st.button("Search →", use_container_width=True)
 
+    # Show "typing..." state immediately when query changes
+    if query and query != st.session_state.last_query and not search_clicked:
+        st.markdown('<p style="color:#999; font-size:0.85rem; font-style:italic;">User is typing...</p>', unsafe_allow_html=True)
+    
     if (query and query != st.session_state.last_query) or (search_clicked and query):
         st.session_state.feedback_given = False
         st.session_state.last_query = query
@@ -461,13 +481,15 @@ if nav == "🔍 Search":
                     with st.expander(f"❓ {title}  —  {score_pct}% match"):
                         st.markdown(src_badge, unsafe_allow_html=True)
                         st.markdown("")
-                        # Format answer as bullet points
+                        # Format answer as bullet points and highlight matching words
                         if answer:
                             formatted = _format_answer_bullets(answer)
-                            st.text(formatted)
+                            highlighted = _highlight_matching_words(formatted, st.session_state.last_query)
+                            st.markdown(highlighted)
                         else:
                             formatted = _format_answer_bullets(chunk["content"])
-                            st.text(formatted)
+                            highlighted = _highlight_matching_words(formatted, st.session_state.last_query)
+                            st.markdown(highlighted)
                         # Source link
                         st.markdown(f'<p style="font-size:0.75rem; color:#999; margin-top:1rem; border-top:1px solid #eee; padding-top:0.5rem;">📄 Source: <strong>{chunk.get("title", "Document")}</strong></p>', unsafe_allow_html=True)
             else:
