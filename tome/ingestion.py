@@ -92,6 +92,9 @@ def extract_text(file_bytes: bytes, file_type: str) -> str:
         return extract_text_from_docx(file_bytes)
     elif ft in ("xlsx", "xls"):
         return extract_text_from_xlsx(file_bytes)
+    elif ft == "md":
+        # Markdown is just plain text
+        return file_bytes.decode('utf-8', errors='ignore')
     else:
         raise ValueError(f"Unsupported file type: {file_type}")
 
