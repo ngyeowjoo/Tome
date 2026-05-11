@@ -372,6 +372,7 @@ if nav == "🔍 Search":
     if (query and query != st.session_state.last_query) or (search_clicked and query):
         st.session_state.feedback_given = False
         st.session_state.last_query = query
+        st.session_state.last_result = None  # Clear old results immediately
         msg = "Searching + generating answer..." if st.session_state.ai_mode else "Searching knowledge base..."
         with st.spinner(msg):
             try:
@@ -540,7 +541,7 @@ elif nav == "📂 Admin":
         uploaded_files = st.file_uploader(
             "Choose files",
             accept_multiple_files=True,
-            type=["pdf", "docx", "xlsx"],
+            type=["pdf", "docx", "xlsx", "md"],
             label_visibility="collapsed",
         )
 
