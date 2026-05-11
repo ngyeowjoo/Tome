@@ -478,11 +478,10 @@ if nav == "🔍 Search":
                     with st.expander(f"❓ {title}  —  {score_pct}% match"):
                         st.markdown(src_badge, unsafe_allow_html=True)
                         st.markdown("")
-                        # Highlight matching words first, then format as bullets
+                        # Display with yellow highlighting
                         text_to_display = answer if answer else chunk["content"]
                         highlighted = _highlight_matching_words(text_to_display, st.session_state.last_query)
-                        formatted = _format_answer_bullets(highlighted)
-                        st.markdown(formatted, unsafe_allow_html=True)
+                        st.markdown(highlighted, unsafe_allow_html=True)
                         # Source link
                         st.markdown(f'<p style="font-size:0.75rem; color:#999; margin-top:1rem; border-top:1px solid #eee; padding-top:0.5rem;">📄 Source: <strong>{chunk.get("title", "Document")}</strong></p>', unsafe_allow_html=True)
             else:
