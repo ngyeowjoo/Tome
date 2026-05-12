@@ -6,9 +6,10 @@ import streamlit as st
 import os
 import sys
 import re
+import json
 
 sys.path.insert(0, os.path.dirname(__file__))
-import db, ingestion, ai
+import db, ingestion, ai, search
 
 # ── Page config ────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ hr { border-color:#E5E0D8 !important; }
 # ── Init DB ────────────────────────────────────────────────────────────────────
 
 db.init_db()
+search.init_synonym_table()
 
 # ── Session state ──────────────────────────────────────────────────────────────
 
@@ -69,6 +71,8 @@ if "feedback_given" not in st.session_state:
     st.session_state.feedback_given = False
 if "ai_mode" not in st.session_state:
     st.session_state.ai_mode = False
+if "corrected_query" not in st.session_state:
+    st.session_state.corrected_query = None
 
 # Pre-fill from URL query param (Chrome extension)
 _params = st.query_params
@@ -77,30 +81,24 @@ if "q" in _params and not st.session_state.last_query:
 
 # ── Helper functions ───────────────────────────────────────────────────────────
 
-def _keyword_faq_match(query, faqs):
-    query_terms = set(query.lower().split())
-    scored = []
-    for faq in faqs:
-        faq_terms = set(faq["question"].lower().split())
-        score = len(query_terms & faq_terms)
-        if score > 0:
-            scored.append((score, faq))
-    scored.sort(key=lambda x: x[0], reverse=True)
-    return [f for _, f in scored[:3]]
-
 def _run_search(query):
-    chunks = ingestion.hybrid_search(query, top_k=5)
+    expanded = search.expand_query_with_synonyms(query)
+    chunks = ingestion.hybrid_search(expanded, top_k=8)
+    chunks = search.rerank_chunks(query, chunks)[:5]
     faqs = db.get_all_faqs()
-    matched_faqs = _keyword_faq_match(query, faqs)
-    return {"chunks": chunks, "matched_faqs": matched_faqs, "mode": "search"}
+    matched_faqs = search.enhanced_faq_match(query, faqs)
+    return {"chunks": chunks, "matched_faqs": matched_faqs, "mode": "search", "expanded_query": expanded}
 
 def _run_ai(query):
-    chunks = ingestion.hybrid_search(query, top_k=5)
+    expanded = search.expand_query_with_synonyms(query)
+    chunks = ingestion.hybrid_search(expanded, top_k=8)
+    chunks = search.rerank_chunks(query, chunks)[:5]
     result = ai.generate_answer(query, chunks)
     result["chunks"] = chunks
     faqs = db.get_all_faqs()
-    result["matched_faqs"] = ai.search_faqs(query, faqs) if faqs else []
+    result["matched_faqs"] = search.enhanced_faq_match(query, faqs)
     result["mode"] = "ai"
+    result["expanded_query"] = expanded
     return result
 
 def _extract_qa(chunk_text):
@@ -115,30 +113,9 @@ def _extract_qa(chunk_text):
     cleaned = [l.strip() for l in answer_lines if l.strip() and not l.strip().startswith('#')]
     return question, '\n'.join(cleaned)
 
-def _stem(word):
-    """Strip common suffixes to get root form."""
-    w = word.lower()
-    for suffix in ['tion', 'ment', 'ness', 'able', 'ible', 'ing', 'ed', 'er', 'est', 'ly', 's']:
-        if w.endswith(suffix) and len(w) - len(suffix) > 2:
-            return w[:-len(suffix)]
-    return w
-
-def _stems_match(query_word, target_word):
-    """Match if stems share a common root (handles manage/managing/managed)."""
-    qs = _stem(query_word)
-    ts = _stem(target_word)
-    return qs.startswith(ts) or ts.startswith(qs)
-
-def _highlight_matching_words(text, query):
-    """Highlight words matching query, including verb forms and gerunds."""
-    query_words = re.findall(r"\w+", query.lower())
-    style = "background:#ffeb3b;font-weight:bold;padding:0 2px;"
-    def replacer(match):
-        word = match.group(0)
-        if any(_stems_match(qw, word) for qw in query_words):
-            return f'<mark style="{style}">{word}</mark>'
-        return word
-    return re.sub(r"(?<![>])\b([A-Za-z0-9]+)\b(?![^<]*>)", replacer, text)
+def _highlight(text, query):
+    """Delegate to search.highlight_text for phrase + word highlighting."""
+    return search.highlight_text(text, query)
 
 def _format_answer_bullets(text):
     raw_lines = text.split('\n')
@@ -237,7 +214,16 @@ if nav == "🔍 Search":
         msg = "Searching + generating answer..." if st.session_state.ai_mode else "Searching knowledge base..."
         with st.spinner(msg):
             try:
-                result = _run_ai(query) if st.session_state.ai_mode else _run_search(query)
+                # Typo correction
+                all_chunks_for_typo = db.get_all_chunks()
+                all_faqs_for_typo = db.get_all_faqs()
+                corrected_query, was_corrected = search.correct_query_typos(query, all_faqs_for_typo, all_chunks_for_typo)
+                if was_corrected:
+                    st.session_state.corrected_query = corrected_query
+                else:
+                    st.session_state.corrected_query = None
+
+                result = _run_ai(corrected_query) if st.session_state.ai_mode else _run_search(corrected_query)
                 db.log_search(query, len(result.get("chunks", [])))
                 st.session_state.last_result = result
             except Exception as e:
@@ -259,6 +245,17 @@ if nav == "🔍 Search":
         result = st.session_state.last_result
         chunks = result.get("chunks", [])
 
+        # Typo correction notice
+        if st.session_state.get("corrected_query"):
+            st.info(f"🔤 Showing results for **{st.session_state.corrected_query}** (auto-corrected)")
+
+        # Synonym expansion notice
+        expanded = result.get("expanded_query", "")
+        if expanded and expanded.strip() != st.session_state.last_query.strip():
+            extra = expanded.replace(st.session_state.last_query, "").strip()
+            if extra:
+                st.caption(f"🔗 Query expanded with synonyms: _{extra}_")
+
         # AI answer
         if result.get("mode") == "ai":
             st.markdown("<br>", unsafe_allow_html=True)
@@ -272,7 +269,7 @@ if nav == "🔍 Search":
                     <span style="font-family:monospace; font-size:0.7rem; color:#555; text-transform:uppercase; letter-spacing:0.1em;">Generated by Claude</span>
                     <span class="{conf_class}" style="font-family:monospace; font-size:0.75rem;">◆ {conf_label} CONFIDENCE ({conf_score}%)</span>
                 </div>
-                <div style="color:#1A1A1A; line-height:1.7; font-size:0.95rem;">{_highlight_matching_words(result['answer'], st.session_state.last_query).replace(chr(10), '<br>')}</div>
+                <div style="color:#1A1A1A; line-height:1.7; font-size:0.95rem;">{_highlight(result['answer'], st.session_state.last_query).replace(chr(10), '<br>')}</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -304,13 +301,19 @@ if nav == "🔍 Search":
                     score_pct = int(chunk.get("score", 0) * 100)
                     question, answer = _extract_qa(chunk["content"])
                     title = question if question else chunk.get("title", "Result")
-                    highlighted_title = _highlight_matching_words(title, st.session_state.last_query)
+                    score_pct = chunk.get("score_pct", score_pct)
+                    explanation = chunk.get("score_explanation", "Semantic similarity")
+                    match_color = chunk.get("match_color", "#555")
+                    highlighted_title = _highlight(title, st.session_state.last_query)
                     with st.expander(f"❓ {title}  —  {score_pct}% match"):
                         st.markdown(f'<div style="font-size:0.95rem;font-weight:600;margin-bottom:0.5rem;">❓ {highlighted_title}</div>', unsafe_allow_html=True)
-                        st.markdown(src_badge, unsafe_allow_html=True)
+                        st.markdown(
+                            f'{src_badge} <span style="font-family:monospace;font-size:0.72rem;color:{match_color};font-weight:600;">{score_pct}% — {explanation}</span>',
+                            unsafe_allow_html=True
+                        )
                         st.markdown("")
                         text_to_display = answer if answer else chunk["content"]
-                        highlighted = _highlight_matching_words(text_to_display, st.session_state.last_query)
+                        highlighted = _highlight(text_to_display, st.session_state.last_query)
                         bullets = _format_answer_bullets(highlighted)
                         st.markdown(bullets, unsafe_allow_html=True)
                         st.markdown(f'<p style="font-size:0.75rem; color:#999; margin-top:1rem; border-top:1px solid #eee; padding-top:0.5rem;">📄 Source: <strong>{chunk.get("title", "Document")}</strong></p>', unsafe_allow_html=True)
@@ -359,8 +362,8 @@ elif nav == "📋 FAQs":
                 st.markdown(f'<div class="section-header">{cat}</div>', unsafe_allow_html=True)
                 for faq in items:
                     q = st.session_state.get("last_query", "")
-                    hl_question = _highlight_matching_words(faq["question"], q) if q else faq["question"]
-                    hl_answer = _highlight_matching_words(faq["answer"], q) if q else faq["answer"]
+                    hl_question = _highlight(faq["question"], q) if q else faq["question"]
+                    hl_answer = _highlight(faq["answer"], q) if q else faq["answer"]
                     with st.expander(f"❓ {faq['question']}"):
                         st.markdown(f'<div style="font-weight:600;margin-bottom:0.4rem;">❓ {hl_question}</div>', unsafe_allow_html=True)
                         st.markdown(f'<div style="color:#555;line-height:1.7;">{hl_answer}</div>', unsafe_allow_html=True)
@@ -390,7 +393,7 @@ elif nav == "📋 FAQs":
 elif nav == "📂 Admin":
     st.markdown("## Admin — Knowledge Management")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Upload Documents", "Manage Documents", "QA Review", "View Chunks"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Upload Documents", "Manage Documents", "QA Review", "View Chunks", "Synonyms"])
 
     with tab1:
         st.markdown('<div class="section-header">Upload New Document</div>', unsafe_allow_html=True)
@@ -479,6 +482,43 @@ elif nav == "📂 Admin":
                 label = f"#{chunk.get('chunk_index',0)+1} · {chunk['title']} · {len(chunk['content'].split())} words"
                 with st.expander(label):
                     st.write(chunk["content"])
+
+    with tab5:
+        st.markdown('<div class="section-header">Synonym Groups</div>', unsafe_allow_html=True)
+        st.markdown('<p style="color:#777; font-size:0.85rem;">Define synonyms to expand search queries. e.g. "CPF" → "retirement fund, provident fund". Agents can use any term and the system will search for all.</p>', unsafe_allow_html=True)
+
+        # Add new group
+        with st.form("add_synonym_form"):
+            st.markdown("**Add Synonym Group**")
+            col_a, col_b = st.columns([1, 2])
+            with col_a:
+                canonical = st.text_input("Main term", placeholder="e.g. cpf")
+            with col_b:
+                variants_input = st.text_input("Synonyms (comma-separated)", placeholder="e.g. retirement fund, provident fund, cpf savings")
+            if st.form_submit_button("Add Group"):
+                if canonical.strip() and variants_input.strip():
+                    variants = [v.strip() for v in variants_input.split(",") if v.strip()]
+                    search.add_synonym_group(canonical, variants)
+                    st.success(f"✅ Added: **{canonical}** → {variants}")
+                    st.rerun()
+                else:
+                    st.error("Both fields are required.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        groups = search.get_all_synonym_groups()
+        if not groups:
+            st.info("No synonym groups yet. Add one above.")
+        else:
+            st.markdown('<div class="section-header">Existing Groups</div>', unsafe_allow_html=True)
+            for group in groups:
+                variants = ", ".join(json.loads(group["variants"]))
+                col1, col2 = st.columns([5, 1])
+                with col1:
+                    st.markdown(f'<div style="padding:0.6rem 0; border-bottom:1px solid #eee;"><strong style="color:#C4992A;">{group["canonical"]}</strong> → <span style="color:#555;">{variants}</span></div>', unsafe_allow_html=True)
+                with col2:
+                    if st.button("Delete", key=f"del_syn_{group['id']}"):
+                        search.delete_synonym_group(group["id"])
+                        st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ANALYTICS PAGE
