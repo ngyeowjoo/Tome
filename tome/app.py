@@ -186,6 +186,43 @@ with st.sidebar:
 # SEARCH PAGE
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
+def _make_snippet(text: str, query: str, radius: int = 80) -> str:
+    """
+    Google-style snippet: find the best matching sentence,
+    return ...context before... match ...context after...
+    """
+    import re
+    query_words = [w for w in re.findall(r"\w+", query.lower()) if len(w) >= 3]
+    sentences = re.split(r"(?<=[.!?])\s+|\n+", text.strip())
+
+    # Score each sentence by how many query words it contains
+    best_sentence = ""
+    best_score = -1
+    for sentence in sentences:
+        score = sum(1 for w in query_words if w in sentence.lower())
+        if score > best_score:
+            best_score = score
+            best_sentence = sentence
+
+    if not best_sentence:
+        best_sentence = sentences[0] if sentences else text
+
+    # Find the match position in the full text for context
+    idx = text.lower().find(best_sentence[:30].lower())
+    if idx == -1:
+        idx = 0
+
+    start = max(0, idx - radius)
+    end = min(len(text), idx + len(best_sentence) + radius)
+
+    snippet = text[start:end].strip()
+    prefix = "..." if start > 0 else ""
+    suffix = "..." if end < len(text) else ""
+
+    return prefix + snippet + suffix
+
+
 if nav == "🔍 Search":
     if st.session_state.ai_mode:
         st.markdown("## AI Answer")
@@ -304,18 +341,27 @@ if nav == "🔍 Search":
                     explanation = chunk.get("score_explanation", "Semantic similarity")
                     match_color = chunk.get("match_color", "#555")
                     highlighted_title = _highlight(title, st.session_state.last_query)
+                    # Build snippet for collapsed preview
+                    text_to_display = answer if answer else chunk["content"]
+                    snippet = _make_snippet(text_to_display, st.session_state.last_query)
+                    highlighted_snippet = _highlight(snippet, st.session_state.last_query)
                     with st.expander(f"❓ {title}  —  {score_pct}% match"):
-                        st.markdown(f'<div style="font-size:0.95rem;font-weight:600;margin-bottom:0.5rem;">❓ {highlighted_title}</div>', unsafe_allow_html=True)
+                        # Score badge
                         st.markdown(
                             f'{src_badge} <span style="font-family:monospace;font-size:0.72rem;color:{match_color};font-weight:600;">{score_pct}% — {explanation}</span>',
                             unsafe_allow_html=True
                         )
-                        st.markdown("")
-                        text_to_display = answer if answer else chunk["content"]
-                        highlighted = _highlight(text_to_display, st.session_state.last_query)
-                        bullets = _format_answer_bullets(highlighted)
-                        st.markdown(bullets, unsafe_allow_html=True)
-                        st.markdown(f'<p style="font-size:0.75rem; color:#999; margin-top:1rem; border-top:1px solid #eee; padding-top:0.5rem;">📄 Source: <strong>{chunk.get("title", "Document")}</strong></p>', unsafe_allow_html=True)
+                        # Snippet (Google-style)
+                        st.markdown(
+                            f'<div style="font-size:0.88rem;color:#555;line-height:1.7;margin:0.6rem 0;font-style:italic;">{highlighted_snippet}</div>',
+                            unsafe_allow_html=True
+                        )
+                        # Full answer as bullets (expandable via "Show full answer")
+                        with st.expander("Show full answer"):
+                            highlighted_full = _highlight(text_to_display, st.session_state.last_query)
+                            bullets = _format_answer_bullets(highlighted_full)
+                            st.markdown(bullets, unsafe_allow_html=True)
+                        st.markdown(f'<p style="font-size:0.75rem; color:#999; margin-top:0.8rem; border-top:1px solid #eee; padding-top:0.5rem;">📄 Source: <strong>{chunk.get("title", "Document")}</strong></p>', unsafe_allow_html=True)
             else:
                 for chunk in chunks[:4]:
                     src_badge = '<span class="tag">semantic</span>' if chunk.get("source") == "semantic" else '<span class="tag">keyword</span>'
