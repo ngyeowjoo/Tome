@@ -6,7 +6,6 @@ import streamlit as st
 import os
 import sys
 import re
-import json
 
 sys.path.insert(0, os.path.dirname(__file__))
 import db, ingestion, ai, search
@@ -511,9 +510,9 @@ elif nav == "📂 Admin":
         else:
             st.markdown('<div class="section-header">Existing Groups</div>', unsafe_allow_html=True)
             for group in groups:
-                variants = ", ".join(json.loads(group["variants"]))
                 col1, col2 = st.columns([5, 1])
                 with col1:
+                    variants = str(group.get("variants", ""))
                     st.markdown(f'<div style="padding:0.6rem 0; border-bottom:1px solid #eee;"><strong style="color:#C4992A;">{group["canonical"]}</strong> → <span style="color:#555;">{variants}</span></div>', unsafe_allow_html=True)
                 with col2:
                     if st.button("Delete", key=f"del_syn_{group['id']}"):
