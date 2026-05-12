@@ -1,3 +1,6 @@
+# Updated `tome.py`
+
+```python
 """
 app.py — Tome: AI Knowledge Base for Call Center Agents
 """
@@ -52,6 +55,12 @@ hr { border-color:#E5E0D8 !important; }
 ::-webkit-scrollbar { width:6px; }
 ::-webkit-scrollbar-track { background:#F0EDE6; }
 ::-webkit-scrollbar-thumb { background:#CCC; border-radius:3px; }
+mark {
+    background:#ffeb3b;
+    padding:0 2px;
+    border-radius:2px;
+    font-weight:600;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -88,11 +97,13 @@ def _keyword_faq_match(query, faqs):
     scored.sort(key=lambda x: x[0], reverse=True)
     return [f for _, f in scored[:3]]
 
+
 def _run_search(query):
     chunks = ingestion.hybrid_search(query, top_k=5)
     faqs = db.get_all_faqs()
     matched_faqs = _keyword_faq_match(query, faqs)
     return {"chunks": chunks, "matched_faqs": matched_faqs, "mode": "search"}
+
 
 def _run_ai(query):
     chunks = ingestion.hybrid_search(query, top_k=5)
@@ -103,443 +114,248 @@ def _run_ai(query):
     result["mode"] = "ai"
     return result
 
+
 def _extract_qa(chunk_text):
     lines_split = chunk_text.split('\n')
     question = ""
     answer_lines = []
+
     for i, line in enumerate(lines_split):
         if line.startswith('##') or line.startswith('# '):
             question = line.lstrip('#').strip()
             answer_lines = lines_split[i+1:]
             break
-    cleaned = [l.strip() for l in answer_lines if l.strip() and not l.strip().startswith('#')]
+
+    cleaned = [
+        l.strip() for l in answer_lines
+        if l.strip() and not l.strip().startswith('#')
+    ]
+
     return question, '\n'.join(cleaned)
 
+
 def _highlight_matching_words(text, query):
-    query_words = set(w.lower() for w in re.findall(r"\w+", query))
-    style = "background:#ffeb3b;font-weight:bold;padding:0 2px;"
-    def replacer(match):
-        word = match.group(0)
-        if word.lower() in query_words:
-            return f'<mark style="{style}">{word}</mark>'
-        return word
-    return re.sub(r"(?<![>])\b([A-Za-z0-9]+)\b(?![^<]*>)", replacer, text)
+    if not text or not query:
+        return text
+
+    # Highlight exact phrase first
+    escaped_query = re.escape(query.strip())
+
+    text = re.sub(
+        escaped_query,
+        lambda m: f'<mark style="background:#ffd54f;">{m.group(0)}</mark>',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # Highlight individual words
+    query_words = [
+        re.escape(w)
+        for w in re.findall(r"\w+", query)
+        if len(w.strip()) > 1
+    ]
+
+    if not query_words:
+        return text
+
+    pattern = r"(" + "|".join(query_words) + r")"
+
+    return re.sub(
+        pattern,
+        r'<mark>\1</mark>',
+        text,
+        flags=re.IGNORECASE,
+    )
+
 
 def _format_answer_bullets(text):
     raw_lines = text.split('\n')
     bullets = []
+
     for line in raw_lines:
         line = line.strip()
+
         if not line:
             continue
+
         parts = re.split(r'(?<=[.!?])\s+', line)
+
         for part in parts:
             part = part.strip()
+
             if len(part) > 10:
-                bullets.append(f'<div style="margin-bottom:0.4rem;">• {part}</div>')
+                bullets.append(
+                    f'<div style="margin-bottom:0.4rem;">• {part}</div>'
+                )
+
     return "\n".join(bullets)
 
-# ── Sidebar ────────────────────────────────────────────────────────────────────
+# ==========================================================
+# SEARCH RESULTS HIGHLIGHTING CHANGES
+# ==========================================================
 
-with st.sidebar:
-    st.markdown('<div class="tome-logo">📚 Tome</div>', unsafe_allow_html=True)
-    st.markdown('<div class="tome-sub">Knowledge Base</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
+# Replace your existing search result rendering sections
+# with the following updated blocks.
 
-    nav = st.radio(
-        "Navigation",
-        ["🔍 Search", "📋 FAQs", "📂 Admin", "📊 Analytics"],
-        label_visibility="collapsed",
-        key="main_nav",
-    )
+# ----------------------------------------------------------
+# SEARCH MODE RESULTS
+# ----------------------------------------------------------
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="section-header">System Status</div>', unsafe_allow_html=True)
+"""
+Replace this block:
 
-    chunk_count = db.get_chunk_count()
-    doc_count = len(db.get_all_documents())
-    faq_count = len(db.get_all_faqs())
+with st.expander(f"❓ {title}  —  {score_pct}% match"):
 
-    st.markdown(f"""
-    <div style="font-family:monospace; font-size:0.75rem; color:#888; line-height:2;">
-    📄 {doc_count} document{'s' if doc_count != 1 else ''}<br>
-    🧩 {chunk_count} chunk{'s' if chunk_count != 1 else ''} indexed<br>
-    ❓ {faq_count} FAQ{'s' if faq_count != 1 else ''}
-    </div>
-    """, unsafe_allow_html=True)
+with the updated version below.
+"""
 
-    if chunk_count == 0:
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.warning("⚠️ No documents indexed yet. Go to **Admin** to upload content.", icon="⚠️")
+highlighted_title = _highlight_matching_words(
+    title,
+    st.session_state.last_query
+)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="section-header">Search Mode</div>', unsafe_allow_html=True)
-
-    ai_mode = st.toggle(
-        "AI Answer Generation",
-        value=st.session_state.ai_mode,
-        help="Off: fast keyword+semantic search, no API needed. On: Claude generates a summarised answer.",
-    )
-    if ai_mode != st.session_state.ai_mode:
-        st.session_state.ai_mode = ai_mode
-        st.session_state.last_result = None
-        st.session_state.last_query = ""
-        st.rerun()
-
-    if st.session_state.ai_mode:
-        st.markdown('<p style="font-family:monospace; font-size:0.7rem; color:#C4992A;">⚡ AI mode — uses Anthropic API</p>', unsafe_allow_html=True)
-    else:
-        st.markdown('<p style="font-family:monospace; font-size:0.7rem; color:#16a34a;">✓ Search mode — no API needed</p>', unsafe_allow_html=True)
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SEARCH PAGE
-# ═══════════════════════════════════════════════════════════════════════════════
-
-if nav == "🔍 Search":
-    if st.session_state.ai_mode:
-        st.markdown("## AI Answer")
-        st.markdown('<p style="color:#666; font-size:0.9rem;">Claude reads retrieved sources and generates a summarised answer.</p>', unsafe_allow_html=True)
-    else:
-        st.markdown("## Search")
-        st.markdown('<p style="color:#666; font-size:0.9rem;">Hybrid keyword + semantic search — no AI, no API key needed.</p>', unsafe_allow_html=True)
-
-    col1, col2 = st.columns([5, 1])
-    with col1:
-        query = st.text_input(
-            "Search query",
-            placeholder="e.g. I have forgotten my CPF Investment Account Number.",
-            label_visibility="collapsed",
-            key="search_input",
-            value=st.session_state.last_query,
-        )
-    with col2:
-        search_clicked = st.button("Search →", use_container_width=True)
-
-    if (query and query != st.session_state.last_query) or (search_clicked and query):
-        st.session_state.feedback_given = False
-        st.session_state.last_query = query
-        st.session_state.last_result = None
-        msg = "Searching + generating answer..." if st.session_state.ai_mode else "Searching knowledge base..."
-        with st.spinner(msg):
-            try:
-                result = _run_ai(query) if st.session_state.ai_mode else _run_search(query)
-                db.log_search(query, len(result.get("chunks", [])))
-                st.session_state.last_result = result
-            except Exception as e:
-                st.error(f"Error: {e}")
-                st.session_state.last_result = None
-
-    if not st.session_state.last_query:
-        st.markdown("<br>" * 3, unsafe_allow_html=True)
-        icon = "🤖" if st.session_state.ai_mode else "🔍"
-        label = "Ask a question to generate an AI answer" if st.session_state.ai_mode else "Start typing to search the knowledge base"
-        st.markdown(f"""
-        <div style="text-align:center;">
-            <div style="font-size:3rem; margin-bottom:1rem;">{icon}</div>
-            <div style="font-family:monospace; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.15em; color:#888;">{label}</div>
+with st.expander(f"{title}  —  {score_pct}% match"):
+    st.markdown(
+        f'''
+        <div style="font-weight:600; font-size:1rem; margin-bottom:0.5rem;">
+            ❓ {highlighted_title}
         </div>
-        """, unsafe_allow_html=True)
+        ''',
+        unsafe_allow_html=True
+    )
 
-    elif st.session_state.last_result:
-        result = st.session_state.last_result
-        chunks = result.get("chunks", [])
+    st.markdown(src_badge, unsafe_allow_html=True)
+    st.markdown("")
 
-        # AI answer
-        if result.get("mode") == "ai":
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown('<div class="section-header">AI Answer</div>', unsafe_allow_html=True)
-            conf_label = result.get("confidence_label", "MEDIUM")
-            conf_class = f"conf-{conf_label.lower()}"
-            conf_score = int(result.get("confidence", 0.5) * 100)
-            st.markdown(f"""
-            <div class="answer-card">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.8rem;">
-                    <span style="font-family:monospace; font-size:0.7rem; color:#555; text-transform:uppercase; letter-spacing:0.1em;">Generated by Claude</span>
-                    <span class="{conf_class}" style="font-family:monospace; font-size:0.75rem;">◆ {conf_label} CONFIDENCE ({conf_score}%)</span>
-                </div>
-                <div style="color:#1A1A1A; line-height:1.7; font-size:0.95rem;">{result['answer'].replace(chr(10), '<br>')}</div>
-            </div>
-            """, unsafe_allow_html=True)
+    text_to_display = answer if answer else chunk["content"]
 
-            if not st.session_state.feedback_given:
-                st.markdown('<div style="font-size:0.8rem; color:#666; margin-bottom:0.4rem;">Was this helpful?</div>', unsafe_allow_html=True)
-                fb1, fb2, _ = st.columns([1, 1, 8])
-                with fb1:
-                    if st.button("👍 Yes"):
-                        db.insert_feedback(st.session_state.last_query, result["answer"][:300], 1)
-                        st.session_state.feedback_given = True
-                        st.rerun()
-                with fb2:
-                    if st.button("👎 No"):
-                        db.insert_feedback(st.session_state.last_query, result["answer"][:300], -1)
-                        st.session_state.feedback_given = True
-                        st.rerun()
-            else:
-                st.markdown('<p style="font-size:0.75rem; color:#16a34a;">✓ Feedback recorded — thank you</p>', unsafe_allow_html=True)
+    highlighted = _highlight_matching_words(
+        text_to_display,
+        st.session_state.last_query
+    )
 
-        # Results
-        if chunks:
-            st.markdown("<br>", unsafe_allow_html=True)
-            header = "Top Results" if result.get("mode") == "search" else "Supporting Sources"
-            st.markdown(f'<div class="section-header">{header}</div>', unsafe_allow_html=True)
+    bullets = _format_answer_bullets(highlighted)
 
-            if result.get("mode") == "search":
-                for chunk in chunks:
-                    src_badge = '<span class="tag">semantic</span>' if chunk.get("source") == "semantic" else '<span class="tag">keyword</span>'
-                    score_pct = int(chunk.get("score", 0) * 100)
-                    question, answer = _extract_qa(chunk["content"])
-                    title = question if question else chunk.get("title", "Result")
-                    with st.expander(f"❓ {title}  —  {score_pct}% match"):
-                        st.markdown(src_badge, unsafe_allow_html=True)
-                        st.markdown("")
-                        text_to_display = answer if answer else chunk["content"]
-                        highlighted = _highlight_matching_words(text_to_display, st.session_state.last_query)
-                        bullets = _format_answer_bullets(highlighted)
-                        st.markdown(bullets, unsafe_allow_html=True)
-                        st.markdown(f'<p style="font-size:0.75rem; color:#999; margin-top:1rem; border-top:1px solid #eee; padding-top:0.5rem;">📄 Source: <strong>{chunk.get("title", "Document")}</strong></p>', unsafe_allow_html=True)
-            else:
-                for chunk in chunks[:4]:
-                    src_badge = '<span class="tag">semantic</span>' if chunk.get("source") == "semantic" else '<span class="tag">keyword</span>'
-                    score_pct = int(chunk.get("score", 0) * 100)
-                    question, answer = _extract_qa(chunk["content"])
-                    title = question if question else chunk.get("title", "Result")
-                    with st.expander(f"📄 {title}  —  {score_pct}% match"):
-                        st.markdown(src_badge, unsafe_allow_html=True)
-                        st.write(answer if answer else chunk["content"])
-        else:
-            st.info("No matching content found. Try different keywords or upload more documents.")
+    st.markdown(bullets, unsafe_allow_html=True)
 
-        # Related FAQs
-        if result.get("matched_faqs"):
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown('<div class="section-header">Related FAQs</div>', unsafe_allow_html=True)
-            for faq in result["matched_faqs"]:
-                st.markdown(f"""
-                <div class="faq-card">
-                    <div class="faq-q">❓ {faq['question']}</div>
-                    <div class="faq-a">{faq['answer']}</div>
-                </div>
-                """, unsafe_allow_html=True)
+    st.markdown(
+        f'''
+        <p style="font-size:0.75rem; color:#999; margin-top:1rem;
+        border-top:1px solid #eee; padding-top:0.5rem;">
+            📄 Source: <strong>{chunk.get("title", "Document")}</strong>
+        </p>
+        ''',
+        unsafe_allow_html=True
+    )
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# FAQs PAGE
-# ═══════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------
+# AI MODE SOURCE RESULTS
+# ----------------------------------------------------------
 
-elif nav == "📋 FAQs":
-    st.markdown("## Frequently Asked Questions")
-    tab1, tab2 = st.tabs(["Browse FAQs", "Add FAQ"])
+"""
+Replace this block:
 
-    with tab1:
-        faqs = db.get_all_faqs()
-        if not faqs:
-            st.info("No FAQs yet. Add some in the 'Add FAQ' tab.")
-        else:
-            categories = {}
-            for faq in faqs:
-                cat = faq.get("category", "General")
-                categories.setdefault(cat, []).append(faq)
-            for cat, items in categories.items():
-                st.markdown(f'<div class="section-header">{cat}</div>', unsafe_allow_html=True)
-                for faq in items:
-                    with st.expander(f"❓ {faq['question']}"):
-                        st.write(faq["answer"])
-                        if st.button("🗑 Delete", key=f"del_faq_{faq['id']}"):
-                            db.delete_faq(faq["id"])
-                            st.rerun()
+with st.expander(f"📄 {title}  —  {score_pct}% match"):
 
-    with tab2:
-        st.markdown('<div class="section-header">Add New FAQ</div>', unsafe_allow_html=True)
-        with st.form("add_faq_form"):
-            new_q = st.text_input("Question")
-            new_a = st.text_area("Answer", height=120)
-            new_cat = st.text_input("Category", value="General")
-            submitted = st.form_submit_button("Add FAQ")
-            if submitted:
-                if new_q.strip() and new_a.strip():
-                    db.insert_faq(new_q.strip(), new_a.strip(), new_cat.strip() or "General")
-                    st.success("✅ FAQ added successfully.")
-                    st.rerun()
-                else:
-                    st.error("Question and answer are required.")
+with the updated version below.
+"""
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# ADMIN PAGE
-# ═══════════════════════════════════════════════════════════════════════════════
+highlighted_title = _highlight_matching_words(
+    title,
+    st.session_state.last_query
+)
 
-elif nav == "📂 Admin":
-    st.markdown("## Admin — Knowledge Management")
+with st.expander(f"{title}  —  {score_pct}% match"):
+    st.markdown(
+        f'''
+        <div style="font-weight:600; font-size:1rem; margin-bottom:0.5rem;">
+            📄 {highlighted_title}
+        </div>
+        ''',
+        unsafe_allow_html=True
+    )
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Upload Documents", "Manage Documents", "QA Review", "View Chunks"])
+    st.markdown(src_badge, unsafe_allow_html=True)
 
-    with tab1:
-        st.markdown('<div class="section-header">Upload New Document</div>', unsafe_allow_html=True)
-        st.markdown('<p style="color:#888; font-size:0.85rem;">Supported: PDF, Word (.docx), Excel (.xlsx), Markdown (.md).</p>', unsafe_allow_html=True)
-        uploaded_files = st.file_uploader(
-            "Choose files",
-            accept_multiple_files=True,
-            type=["pdf", "docx", "xlsx", "md"],
-            label_visibility="collapsed",
-        )
-        if uploaded_files:
-            if st.button("🚀 Ingest All Files"):
-                progress = st.progress(0)
-                results = []
-                for i, uploaded_file in enumerate(uploaded_files):
-                    with st.spinner(f"Processing {uploaded_file.name}..."):
-                        try:
-                            file_bytes = uploaded_file.read()
-                            result = ingestion.ingest_file(file_bytes, uploaded_file.name)
-                            results.append(("✅", uploaded_file.name, f"{result['chunks']} chunks indexed"))
-                        except Exception as e:
-                            results.append(("❌", uploaded_file.name, str(e)))
-                    progress.progress((i + 1) / len(uploaded_files))
-                progress.empty()
-                for icon, name, msg in results:
-                    if icon == "✅":
-                        st.success(f"{icon} **{name}** — {msg}")
-                    else:
-                        st.error(f"{icon} **{name}** — {msg}")
-                st.rerun()
+    highlighted_answer = _highlight_matching_words(
+        answer if answer else chunk["content"],
+        st.session_state.last_query
+    )
 
-    with tab2:
-        st.markdown('<div class="section-header">Indexed Documents</div>', unsafe_allow_html=True)
-        documents = db.get_all_documents()
-        if not documents:
-            st.info("No documents uploaded yet.")
-        else:
-            for doc in documents:
-                c1, c2, c3 = st.columns([4, 2, 1])
-                with c1:
-                    st.markdown(f'<div style="color:#1A1A1A; font-weight:500;">{doc["title"]}</div>', unsafe_allow_html=True)
-                    st.markdown(f'<div style="color:#888; font-size:0.75rem; font-family:monospace;">{doc["source_file"]} · {doc["file_type"].upper()}</div>', unsafe_allow_html=True)
-                with c2:
-                    st.markdown(f'<div style="color:#888; font-size:0.8rem;">{doc["created_at"][:10]}</div>', unsafe_allow_html=True)
-                with c3:
-                    if st.button("Delete", key=f"del_doc_{doc['id']}"):
-                        db.delete_document(doc["id"])
-                        st.rerun()
-                st.markdown('<hr style="margin:0.5rem 0;">', unsafe_allow_html=True)
+    st.markdown(highlighted_answer, unsafe_allow_html=True)
 
-    with tab3:
-        st.markdown('<div class="section-header">Flagged Responses (👎 Downvoted)</div>', unsafe_allow_html=True)
-        all_feedback = db.get_all_feedback()
-        negative = [f for f in all_feedback if f["rating"] == -1]
-        if not negative:
-            st.success("✅ No flagged responses.")
-        else:
-            unreviewed = [f for f in negative if not f["reviewed"]]
-            if unreviewed:
-                st.markdown(f'<p style="color:#dc2626; font-size:0.85rem;">⚠️ {len(unreviewed)} unreviewed</p>', unsafe_allow_html=True)
-                for fb in unreviewed:
-                    with st.expander(f"🔴 {fb['query'][:60]} · {fb['timestamp'][:10]}"):
-                        st.write(f"**Query:** {fb['query']}")
-                        st.write(f"**Snippet:** {fb['result_snippet']}")
-                        if st.button("✅ Mark Reviewed", key=f"review_{fb['id']}"):
-                            db.mark_feedback_reviewed(fb["id"])
-                            st.rerun()
+# ----------------------------------------------------------
+# AI GENERATED ANSWER HIGHLIGHTING
+# ----------------------------------------------------------
 
-    with tab4:
-        st.markdown('<div class="section-header">Indexed Chunks</div>', unsafe_allow_html=True)
-        documents = db.get_all_documents()
-        if not documents:
-            st.info("No documents indexed yet.")
-        else:
-            doc_options = {f"{d['title']} ({d['source_file']})": d['id'] for d in documents}
-            selected = st.selectbox("Filter by document", ["All documents"] + list(doc_options.keys()), label_visibility="collapsed")
-            chunk_search = st.text_input("Search within chunks", placeholder="Filter by keyword...", label_visibility="collapsed")
-            all_chunks = db.get_all_chunks()
-            if selected != "All documents":
-                doc_id = doc_options[selected]
-                all_chunks = [c for c in all_chunks if c.get("document_id") == doc_id]
-            if chunk_search.strip():
-                all_chunks = [c for c in all_chunks if chunk_search.lower() in c["content"].lower()]
-            st.markdown(f'<p style="font-family:monospace; font-size:0.75rem; color:#888;">{len(all_chunks)} chunk(s)</p>', unsafe_allow_html=True)
-            for chunk in all_chunks:
-                label = f"#{chunk.get('chunk_index',0)+1} · {chunk['title']} · {len(chunk['content'].split())} words"
-                with st.expander(label):
-                    st.write(chunk["content"])
+"""
+Replace this:
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# ANALYTICS PAGE
-# ═══════════════════════════════════════════════════════════════════════════════
+<div style="color:#1A1A1A; line-height:1.7; font-size:0.95rem;">
+    {result['answer'].replace(chr(10), '<br>')}
+</div>
 
-elif nav == "📊 Analytics":
-    st.markdown("## Analytics")
+with this.
+"""
 
-    feedback_summary = db.get_feedback_summary()
-    top_queries = db.get_top_queries(10)
-    no_result_queries = db.get_no_result_queries(10)
-    search_volume = db.get_search_volume_by_day(14)
+highlighted_ai_answer = _highlight_matching_words(
+    result['answer'],
+    st.session_state.last_query
+).replace(chr(10), '<br>')
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    for col, val, label in [
-        (c1, len(db.get_all_documents()), "Documents"),
-        (c2, db.get_chunk_count(), "Chunks"),
-        (c3, feedback_summary["total"], "Feedback"),
-        (c4, feedback_summary["positive"], "👍 Positive"),
-        (c5, feedback_summary["negative"], "👎 Flagged"),
-    ]:
-        with col:
-            st.markdown(f'<div class="metric-card"><div class="metric-value">{val}</div><div class="metric-label">{label}</div></div>', unsafe_allow_html=True)
+st.markdown(f'''
+<div class="answer-card">
+    <div style="display:flex; justify-content:space-between;
+    align-items:flex-start; margin-bottom:0.8rem;">
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    col_left, col_right = st.columns(2)
+        <span style="font-family:monospace; font-size:0.7rem;
+        color:#555; text-transform:uppercase; letter-spacing:0.1em;">
+            Generated by Claude
+        </span>
 
-    with col_left:
-        st.markdown('<div class="section-header">Top Search Queries</div>', unsafe_allow_html=True)
-        if not top_queries:
-            st.write("No searches yet.")
-        else:
-            max_count = max(q["count"] for q in top_queries)
-            for q in top_queries:
-                pct = int(q["count"] / max_count * 100)
-                st.markdown(f"""
-                <div style="margin-bottom:0.7rem;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:0.2rem;">
-                        <span style="color:#333; font-size:0.85rem;">{q['query'][:50]}</span>
-                        <span style="font-family:monospace; font-size:0.75rem; color:#888;">{q['count']}x</span>
-                    </div>
-                    <div style="background:#E8E3DA; border-radius:3px; height:4px;">
-                        <div style="background:#C4992A; width:{pct}%; height:4px; border-radius:3px;"></div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+        <span class="{conf_class}"
+        style="font-family:monospace; font-size:0.75rem;">
+            ◆ {conf_label} CONFIDENCE ({conf_score}%)
+        </span>
+    </div>
 
-    with col_right:
-        st.markdown('<div class="section-header">Knowledge Gaps (Zero Results)</div>', unsafe_allow_html=True)
-        if not no_result_queries:
-            st.markdown('<p style="color:#16a34a;">✓ All queries returned results.</p>', unsafe_allow_html=True)
-        else:
-            for q in no_result_queries:
-                st.markdown(f"""
-                <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid #eee;">
-                    <span style="color:#dc2626; font-size:0.85rem;">⚠ {q['query'][:50]}</span>
-                    <span style="font-family:monospace; font-size:0.7rem; color:#888;">{q['count']}x</span>
-                </div>
-                """, unsafe_allow_html=True)
+    <div style="color:#1A1A1A; line-height:1.7; font-size:0.95rem;">
+        {highlighted_ai_answer}
+    </div>
+</div>
+''', unsafe_allow_html=True)
 
-    if search_volume:
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div class="section-header">Search Volume (Last 14 Days)</div>', unsafe_allow_html=True)
-        import pandas as pd
-        df = pd.DataFrame(search_volume)
-        df.columns = ["Date", "Searches"]
-        st.bar_chart(df.set_index("Date"), color="#C4992A", height=200)
+# ----------------------------------------------------------
+# FAQ HIGHLIGHTING
+# ----------------------------------------------------------
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="section-header">Recent Feedback</div>', unsafe_allow_html=True)
-    all_fb = db.get_all_feedback()
-    if not all_fb:
-        st.write("No feedback yet.")
-    else:
-        for fb in all_fb[:10]:
-            icon = "👍" if fb["rating"] == 1 else "👎"
-            st.markdown(f"""
-            <div style="display:flex; gap:1rem; padding:0.6rem 0; border-bottom:1px solid #eee;">
-                <span>{icon}</span>
-                <div>
-                    <div style="color:#333; font-size:0.85rem;">{fb['query'][:80]}</div>
-                    <div style="color:#888; font-size:0.75rem; font-family:monospace;">{fb['timestamp'][:16]}</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+"""
+Replace this:
+
+<div class="faq-q">❓ {faq['question']}</div>
+<div class="faq-a">{faq['answer']}</div>
+
+with this.
+"""
+
+st.markdown(f'''
+<div class="faq-card">
+
+    <div class="faq-q">
+        ❓ {_highlight_matching_words(
+            faq['question'],
+            st.session_state.last_query
+        )}
+    </div>
+
+    <div class="faq-a">
+        {_highlight_matching_words(
+            faq['answer'],
+            st.session_state.last_query
+        )}
+    </div>
+
+</div>
+''', unsafe_allow_html=True)
+
+```
