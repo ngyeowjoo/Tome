@@ -1,81 +1,71 @@
 """
 search.py — Enhanced search: BM25, fuzzy matching, synonym expansion, scoring
+Synonyms are stored in an Excel file (synonyms.xlsx) for Streamlit Cloud compatibility.
 """
 
 import re
 import os
-import json
-import sqlite3
+import io
+import pandas as pd
 
-# ── Synonym store (SQLite-backed) ──────────────────────────────────────────────
+# ── Synonym store (Excel-backed) ───────────────────────────────────────────────
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "data", "tome.db")
-
-
-def get_connection():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
+SYNONYM_PATH = os.path.join(os.path.dirname(__file__), "data", "synonyms.xlsx")
 
 
 def init_synonym_table():
-    conn = get_connection()
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS synonyms (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            canonical TEXT NOT NULL,
-            variants TEXT NOT NULL,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    conn.close()
+    """Create synonyms.xlsx if it doesn't exist."""
+    os.makedirs(os.path.dirname(SYNONYM_PATH), exist_ok=True)
+    if not os.path.exists(SYNONYM_PATH):
+        df = pd.DataFrame(columns=["id", "canonical", "variants"])
+        df.to_excel(SYNONYM_PATH, index=False)
+
+
+def _read_synonyms() -> pd.DataFrame:
+    if not os.path.exists(SYNONYM_PATH):
+        return pd.DataFrame(columns=["id", "canonical", "variants"])
+    try:
+        return pd.read_excel(SYNONYM_PATH)
+    except Exception:
+        return pd.DataFrame(columns=["id", "canonical", "variants"])
+
+
+def _write_synonyms(df: pd.DataFrame):
+    os.makedirs(os.path.dirname(SYNONYM_PATH), exist_ok=True)
+    df.to_excel(SYNONYM_PATH, index=False)
 
 
 def get_all_synonym_groups() -> list[dict]:
-    conn = get_connection()
-    rows = conn.execute("SELECT * FROM synonyms ORDER BY canonical").fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    df = _read_synonyms()
+    return df.to_dict(orient="records")
 
 
 def add_synonym_group(canonical: str, variants: list[str]):
-    conn = get_connection()
-    conn.execute(
-        "INSERT INTO synonyms (canonical, variants) VALUES (?, ?)",
-        (canonical.strip().lower(), json.dumps([v.strip().lower() for v in variants if v.strip()]))
-    )
-    conn.commit()
-    conn.close()
+    df = _read_synonyms()
+    new_id = int(df["id"].max() + 1) if not df.empty and "id" in df.columns and df["id"].notna().any() else 1
+    new_row = pd.DataFrame([{
+        "id": new_id,
+        "canonical": canonical.strip().lower(),
+        "variants": ", ".join(v.strip().lower() for v in variants if v.strip())
+    }])
+    df = pd.concat([df, new_row], ignore_index=True)
+    _write_synonyms(df)
 
 
-def update_synonym_group(group_id: int, canonical: str, variants: list[str]):
-    conn = get_connection()
-    conn.execute(
-        "UPDATE synonyms SET canonical = ?, variants = ? WHERE id = ?",
-        (canonical.strip().lower(), json.dumps([v.strip().lower() for v in variants if v.strip()]), group_id)
-    )
-    conn.commit()
-    conn.close()
-
-
-def delete_synonym_group(group_id: int):
-    conn = get_connection()
-    conn.execute("DELETE FROM synonyms WHERE id = ?", (group_id,))
-    conn.commit()
-    conn.close()
+def delete_synonym_group(group_id):
+    df = _read_synonyms()
+    df = df[df["id"] != group_id]
+    _write_synonyms(df)
 
 
 def build_synonym_map() -> dict[str, str]:
-    """
-    Build a flat map: variant → canonical
-    e.g. {"retirement fund": "cpf", "provident fund": "cpf"}
-    """
+    """Build flat map: variant → canonical."""
     groups = get_all_synonym_groups()
     synonym_map = {}
     for group in groups:
-        canonical = group["canonical"]
-        variants = json.loads(group["variants"])
+        canonical = str(group.get("canonical", "")).lower()
+        variants_raw = str(group.get("variants", ""))
+        variants = [v.strip() for v in variants_raw.split(",") if v.strip()]
         synonym_map[canonical] = canonical
         for v in variants:
             synonym_map[v] = canonical
@@ -83,31 +73,30 @@ def build_synonym_map() -> dict[str, str]:
 
 
 def expand_query_with_synonyms(query: str) -> str:
-    """
-    Expand query by replacing known variants with their canonical form,
-    and appending canonical + variants as additional search terms.
-    """
-    synonym_map = build_synonym_map()
-    if not synonym_map:
+    """Expand query by appending synonyms for any matched terms."""
+    groups = get_all_synonym_groups()
+    if not groups:
         return query
 
-    expanded_terms = set(query.lower().split())
+    expanded_terms = set()
+    query_lower = query.lower()
 
-    # Check each synonym group
-    groups = get_all_synonym_groups()
     for group in groups:
-        canonical = group["canonical"]
-        variants = json.loads(group["variants"])
+        canonical = str(group.get("canonical", "")).lower()
+        variants_raw = str(group.get("variants", ""))
+        variants = [v.strip() for v in variants_raw.split(",") if v.strip()]
         all_terms = [canonical] + variants
 
-        # If any term from this group appears in the query, add all terms
         for term in all_terms:
-            if term in query.lower():
+            if term in query_lower:
                 for t in all_terms:
-                    expanded_terms.add(t)
+                    if t not in query_lower:
+                        expanded_terms.add(t)
                 break
 
-    return query + " " + " ".join(expanded_terms - set(query.lower().split()))
+    if expanded_terms:
+        return query + " " + " ".join(expanded_terms)
+    return query
 
 
 # ── BM25 FAQ matching ──────────────────────────────────────────────────────────
