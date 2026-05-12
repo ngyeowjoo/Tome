@@ -339,55 +339,55 @@ def _run_ai(query):
 
 def _extract_qa(chunk_text):
     """Extract question and answer from chunk, removing markdown headings."""
-    import re
     lines_split = chunk_text.split('\n')
     question = ""
     answer_lines = []
-    
+
     for i, line in enumerate(lines_split):
         if line.startswith('##') or line.startswith('# '):
             question = line.lstrip('#').strip()
             answer_lines = lines_split[i+1:]
             break
-    
-    # Clean up the answer — remove markdown headings and empty lines
-    cleaned_answer = []
-    for line in answer_lines:
-        stripped = line.strip()
-        # Skip markdown headings and empty lines
-        if stripped and not stripped.startswith('#'):
-            cleaned_answer.append(stripped)
-    
-    answer = ' '.join(cleaned_answer).strip()
+
+    # Keep lines but strip markdown headings and blank lines
+    cleaned = [l.strip() for l in answer_lines if l.strip() and not l.strip().startswith('#')]
+    answer = '\n'.join(cleaned)
     return question, answer
 
 
 def _format_answer_bullets(text):
-    """Convert answer text to bullet points by splitting on sentences."""
+    """Convert answer text into bullet points, splitting on newlines and sentences."""
     import re
-    # Split by periods, colons, or newlines
-    sentences = re.split(r'(?<=[.!?:])\s+|\n+', text.strip())
+    raw_lines = text.split('\n')
     bullets = []
-    for s in sentences:
-        s = s.strip()
-        if len(s) > 10:  # Skip tiny fragments
-            bullets.append(f"• {s}")
+    for line in raw_lines:
+        line = line.strip()
+        if not line:
+            continue
+        parts = re.split(r'(?<=[.!?])\s+', line)
+        for part in parts:
+            part = part.strip()
+            if len(part) > 10:
+                bullets.append(f"<div style='margin-bottom:0.4rem;'>• {part}</div>")
     return "\n".join(bullets)
+
 
 
 
 def _highlight_matching_words(text, query):
     """Highlight matching words with yellow background and bold."""
     import re
-    query_words = set(w.lower() for w in query.split())
-    words = re.findall(r'\b\w+\b', text)
-    result = text
-    for word in set(words):
+    query_words = set(w.lower() for w in re.findall(r'\w+', query))
+    # Replace only plain words (not already inside HTML tags)
+    def replacer(match):
+        word = match.group(0)
         if word.lower() in query_words:
-            result = re.sub(r'\b' + word + r'\b', 
-                          f"<mark style='background-color:#ffeb3b; font-weight:bold; padding:0 2px;'>{word}</mark>", 
-                          result, flags=re.IGNORECASE)
+            return f"<mark style=\'background:#ffeb3b;font-weight:bold;padding:0 2px;\'>{word}</mark>"
+        return word
+    # Only replace words not inside HTML tags
+    result = re.sub(r'(?<![>])\b([A-Za-z0-9]+)\b(?![^<]*>)', replacer, text)
     return result
+
 
 
 if nav == "🔍 Search":
