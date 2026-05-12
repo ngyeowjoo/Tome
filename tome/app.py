@@ -1,15 +1,13 @@
 """
 app.py — Tome: AI Knowledge Base for Call Center Agents
-Run with: streamlit run app.py
 """
 
 import streamlit as st
 import os
 import sys
+import re
 
-# Ensure modules are importable
 sys.path.insert(0, os.path.dirname(__file__))
-
 import db, ingestion, ai
 
 # ── Page config ────────────────────────────────────────────────────────────────
@@ -26,235 +24,38 @@ st.set_page_config(
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
-
-html, body, [class*="css"] {
-    font-family: 'IBM Plex Sans', sans-serif;
-}
-
-/* Sidebar */
-[data-testid="stSidebar"] {
-    background: #F5F2EB !important;
-    border-right: 1px solid #E0DAD0;
-}
-
-/* Main bg */
-.stApp {
-    background: #FAFAF7;
-}
-
-/* Metric cards */
-.metric-card {
-    background: #FFFFFF;
-    border: 1px solid #E5E0D8;
-    border-radius: 8px;
-    padding: 1.2rem 1.5rem;
-    text-align: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-.metric-value {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 2rem;
-    font-weight: 600;
-    color: #C4992A;
-    line-height: 1;
-}
-.metric-label {
-    font-size: 0.75rem;
-    color: #999;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-top: 0.4rem;
-}
-
-/* Answer card */
-.answer-card {
-    background: #FFFFFF;
-    border: 1px solid #E5E0D8;
-    border-left: 3px solid #C4992A;
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin: 1rem 0;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-}
-
-/* Source card */
-.source-card {
-    background: #FAFAF7;
-    border: 1px solid #E8E3DA;
-    border-radius: 6px;
-    padding: 0.9rem 1.1rem;
-    margin: 0.5rem 0;
-    font-size: 0.875rem;
-}
-.source-title {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.75rem;
-    color: #C4992A;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 0.3rem;
-}
-
-/* Confidence badge */
-.conf-high { color: #16a34a; font-weight: 600; }
-.conf-medium { color: #d97706; font-weight: 600; }
-.conf-low { color: #dc2626; font-weight: 600; }
-
-/* FAQ card */
-.faq-card {
-    background: #FFFFFF;
-    border: 1px solid #E5E0D8;
-    border-radius: 8px;
-    padding: 1rem 1.2rem;
-    margin: 0.6rem 0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-}
-.faq-q {
-    font-weight: 600;
-    color: #1A1A1A;
-    margin-bottom: 0.4rem;
-}
-.faq-a {
-    color: #555;
-    font-size: 0.9rem;
-    line-height: 1.6;
-}
-
-/* Logo */
-.tome-logo {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 1.6rem;
-    font-weight: 600;
-    color: #C4992A;
-    letter-spacing: -0.02em;
-}
-.tome-sub {
-    font-size: 0.7rem;
-    color: #AAA;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    margin-top: -4px;
-}
-
-/* Search box */
-.stTextInput > div > div > input {
-    background: #FFFFFF !important;
-    border: 1px solid #D8D3CA !important;
-    border-radius: 8px !important;
-    font-family: 'IBM Plex Sans', sans-serif !important;
-    font-size: 1rem !important;
-    color: #1A1A1A !important;
-    padding: 0.75rem 1rem !important;
-}
-.stTextInput > div > div > input:focus {
-    border-color: #C4992A !important;
-    box-shadow: 0 0 0 2px rgba(196, 153, 42, 0.15) !important;
-}
-
-/* Buttons */
-.stButton > button {
-    background: #C4992A !important;
-    color: #FFFFFF !important;
-    border: none !important;
-    border-radius: 6px !important;
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-weight: 600 !important;
-    font-size: 0.85rem !important;
-    letter-spacing: 0.05em !important;
-    padding: 0.5rem 1.2rem !important;
-    transition: all 0.15s ease !important;
-}
-.stButton > button:hover {
-    background: #A87E20 !important;
-    transform: translateY(-1px) !important;
-}
-
-/* Section headers */
-.section-header {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: #AAA;
-    border-bottom: 1px solid #E5E0D8;
-    padding-bottom: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-/* Tag badge */
-.tag {
-    display: inline-block;
-    background: #F0EDE6;
-    border: 1px solid #DDD8CE;
-    border-radius: 4px;
-    padding: 0.15rem 0.5rem;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.7rem;
-    color: #888;
-    margin-right: 0.3rem;
-}
-
-/* Dividers */
-hr { border-color: #E5E0D8 !important; }
-
-/* Tab styling */
-.stTabs [data-baseweb="tab-list"] {
-    background: transparent;
-    border-bottom: 1px solid #E5E0D8;
-    gap: 0;
-}
-.stTabs [data-baseweb="tab"] {
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 0.75rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.1em !important;
-    color: #AAA !important;
-    background: transparent !important;
-    border-radius: 0 !important;
-    padding: 0.6rem 1.2rem !important;
-}
-.stTabs [aria-selected="true"] {
-    color: #C4992A !important;
-    border-bottom: 2px solid #C4992A !important;
-}
-
-/* Expander */
-.streamlit-expanderHeader {
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 0.8rem !important;
-    color: #888 !important;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #F0EDE6; }
-::-webkit-scrollbar-thumb { background: #CCC; border-radius: 3px; }
+html, body, [class*="css"] { font-family: 'IBM Plex Sans', sans-serif; }
+[data-testid="stSidebar"] { background: #F5F2EB !important; border-right: 1px solid #E0DAD0; }
+.stApp { background: #FAFAF7; }
+.metric-card { background:#FFFFFF; border:1px solid #E5E0D8; border-radius:8px; padding:1.2rem 1.5rem; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+.metric-value { font-family:'IBM Plex Mono',monospace; font-size:2rem; font-weight:600; color:#C4992A; line-height:1; }
+.metric-label { font-size:0.75rem; color:#999; text-transform:uppercase; letter-spacing:0.1em; margin-top:0.4rem; }
+.answer-card { background:#FFFFFF; border:1px solid #E5E0D8; border-left:3px solid #C4992A; border-radius:8px; padding:1.5rem; margin:1rem 0; box-shadow:0 1px 4px rgba(0,0,0,0.06); }
+.faq-card { background:#FFFFFF; border:1px solid #E5E0D8; border-radius:8px; padding:1rem 1.2rem; margin:0.6rem 0; }
+.faq-q { font-weight:600; color:#1A1A1A; margin-bottom:0.4rem; }
+.faq-a { color:#555; font-size:0.9rem; line-height:1.6; }
+.tome-logo { font-family:'IBM Plex Mono',monospace; font-size:1.6rem; font-weight:600; color:#C4992A; letter-spacing:-0.02em; }
+.tome-sub { font-size:0.7rem; color:#AAA; text-transform:uppercase; letter-spacing:0.15em; margin-top:-4px; }
+.section-header { font-family:'IBM Plex Mono',monospace; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.15em; color:#AAA; border-bottom:1px solid #E5E0D8; padding-bottom:0.5rem; margin-bottom:1rem; }
+.tag { display:inline-block; background:#F0EDE6; border:1px solid #DDD8CE; border-radius:4px; padding:0.15rem 0.5rem; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:#888; margin-right:0.3rem; }
+.conf-high { color:#16a34a; font-weight:600; }
+.conf-medium { color:#d97706; font-weight:600; }
+.conf-low { color:#dc2626; font-weight:600; }
+hr { border-color:#E5E0D8 !important; }
+.stTextInput > div > div > input { background:#FFFFFF !important; border:1px solid #D8D3CA !important; border-radius:8px !important; font-size:1rem !important; color:#1A1A1A !important; padding:0.75rem 1rem !important; }
+.stTextInput > div > div > input:focus { border-color:#C4992A !important; box-shadow:0 0 0 2px rgba(196,153,42,0.15) !important; }
+.stButton > button { background:#C4992A !important; color:#FFFFFF !important; border:none !important; border-radius:6px !important; font-family:'IBM Plex Mono',monospace !important; font-weight:600 !important; font-size:0.85rem !important; padding:0.5rem 1.2rem !important; }
+.stButton > button:hover { background:#A87E20 !important; }
+.stTabs [data-baseweb="tab-list"] { background:transparent; border-bottom:1px solid #E5E0D8; }
+.stTabs [data-baseweb="tab"] { font-family:'IBM Plex Mono',monospace !important; font-size:0.75rem !important; text-transform:uppercase !important; color:#AAA !important; background:transparent !important; border-radius:0 !important; padding:0.6rem 1.2rem !important; }
+.stTabs [aria-selected="true"] { color:#C4992A !important; border-bottom:2px solid #C4992A !important; }
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:#F0EDE6; }
+::-webkit-scrollbar-thumb { background:#CCC; border-radius:3px; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Init ───────────────────────────────────────────────────────────────────────
-
-db.init_db()
-
-# ── Session state ──────────────────────────────────────────────────────────────
-
-if "last_query" not in st.session_state:
-    st.session_state.last_query = ""
-if "last_result" not in st.session_state:
-    st.session_state.last_result = None
-if "feedback_given" not in st.session_state:
-    st.session_state.feedback_given = False
-if "ai_mode" not in st.session_state:
-    st.session_state.ai_mode = False  # Default: search-only mode
-
-# ── Query param pre-fill (from Chrome extension / embed) ──────────────────────
-_params = st.query_params
-if "q" in _params and not st.session_state.last_query:
-    st.session_state.last_query = _params["q"]
-
-# ── Sidebar ────────────────────────────────────────────────────────────────────
-
-# ── Init ───────────────────────────────────────────────────────────────────────
+# ── Init DB ────────────────────────────────────────────────────────────────────
 
 db.init_db()
 
@@ -269,9 +70,74 @@ if "feedback_given" not in st.session_state:
 if "ai_mode" not in st.session_state:
     st.session_state.ai_mode = False
 
+# Pre-fill from URL query param (Chrome extension)
 _params = st.query_params
 if "q" in _params and not st.session_state.last_query:
     st.session_state.last_query = _params["q"]
+
+# ── Helper functions ───────────────────────────────────────────────────────────
+
+def _keyword_faq_match(query, faqs):
+    query_terms = set(query.lower().split())
+    scored = []
+    for faq in faqs:
+        faq_terms = set(faq["question"].lower().split())
+        score = len(query_terms & faq_terms)
+        if score > 0:
+            scored.append((score, faq))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [f for _, f in scored[:3]]
+
+def _run_search(query):
+    chunks = ingestion.hybrid_search(query, top_k=5)
+    faqs = db.get_all_faqs()
+    matched_faqs = _keyword_faq_match(query, faqs)
+    return {"chunks": chunks, "matched_faqs": matched_faqs, "mode": "search"}
+
+def _run_ai(query):
+    chunks = ingestion.hybrid_search(query, top_k=5)
+    result = ai.generate_answer(query, chunks)
+    result["chunks"] = chunks
+    faqs = db.get_all_faqs()
+    result["matched_faqs"] = ai.search_faqs(query, faqs) if faqs else []
+    result["mode"] = "ai"
+    return result
+
+def _extract_qa(chunk_text):
+    lines_split = chunk_text.split('\n')
+    question = ""
+    answer_lines = []
+    for i, line in enumerate(lines_split):
+        if line.startswith('##') or line.startswith('# '):
+            question = line.lstrip('#').strip()
+            answer_lines = lines_split[i+1:]
+            break
+    cleaned = [l.strip() for l in answer_lines if l.strip() and not l.strip().startswith('#')]
+    return question, '\n'.join(cleaned)
+
+def _highlight_matching_words(text, query):
+    query_words = set(w.lower() for w in re.findall(r"\w+", query))
+    style = "background:#ffeb3b;font-weight:bold;padding:0 2px;"
+    def replacer(match):
+        word = match.group(0)
+        if word.lower() in query_words:
+            return f'<mark style="{style}">{word}</mark>'
+        return word
+    return re.sub(r"(?<![>])\b([A-Za-z0-9]+)\b(?![^<]*>)", replacer, text)
+
+def _format_answer_bullets(text):
+    raw_lines = text.split('\n')
+    bullets = []
+    for line in raw_lines:
+        line = line.strip()
+        if not line:
+            continue
+        parts = re.split(r'(?<=[.!?])\s+', line)
+        for part in parts:
+            part = part.strip()
+            if len(part) > 10:
+                bullets.append(f'<div style="margin-bottom:0.4rem;">• {part}</div>')
+    return "\n".join(bullets)
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 
@@ -284,6 +150,7 @@ with st.sidebar:
         "Navigation",
         ["🔍 Search", "📋 FAQs", "📂 Admin", "📊 Analytics"],
         label_visibility="collapsed",
+        key="main_nav",
     )
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -294,7 +161,7 @@ with st.sidebar:
     faq_count = len(db.get_all_faqs())
 
     st.markdown(f"""
-    <div style="font-family: monospace; font-size: 0.75rem; color: #888; line-height: 2;">
+    <div style="font-family:monospace; font-size:0.75rem; color:#888; line-height:2;">
     📄 {doc_count} document{'s' if doc_count != 1 else ''}<br>
     🧩 {chunk_count} chunk{'s' if chunk_count != 1 else ''} indexed<br>
     ❓ {faq_count} FAQ{'s' if faq_count != 1 else ''}
@@ -377,6 +244,7 @@ if nav == "🔍 Search":
         result = st.session_state.last_result
         chunks = result.get("chunks", [])
 
+        # AI answer
         if result.get("mode") == "ai":
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown('<div class="section-header">AI Answer</div>', unsafe_allow_html=True)
@@ -409,6 +277,7 @@ if nav == "🔍 Search":
             else:
                 st.markdown('<p style="font-size:0.75rem; color:#16a34a;">✓ Feedback recorded — thank you</p>', unsafe_allow_html=True)
 
+        # Results
         if chunks:
             st.markdown("<br>", unsafe_allow_html=True)
             header = "Top Results" if result.get("mode") == "search" else "Supporting Sources"
@@ -436,11 +305,11 @@ if nav == "🔍 Search":
                     title = question if question else chunk.get("title", "Result")
                     with st.expander(f"📄 {title}  —  {score_pct}% match"):
                         st.markdown(src_badge, unsafe_allow_html=True)
-                        st.markdown(answer if answer else chunk["content"])
+                        st.write(answer if answer else chunk["content"])
         else:
-            st.markdown("<br>", unsafe_allow_html=True)
             st.info("No matching content found. Try different keywords or upload more documents.")
 
+        # Related FAQs
         if result.get("matched_faqs"):
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown('<div class="section-header">Related FAQs</div>', unsafe_allow_html=True)
@@ -452,15 +321,12 @@ if nav == "🔍 Search":
                 </div>
                 """, unsafe_allow_html=True)
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # FAQs PAGE
 # ═══════════════════════════════════════════════════════════════════════════════
 
 elif nav == "📋 FAQs":
     st.markdown("## Frequently Asked Questions")
-    st.markdown('<p style="color:#666; font-size:0.9rem;">Browse or manage structured Q&A pairs.</p>', unsafe_allow_html=True)
-
     tab1, tab2 = st.tabs(["Browse FAQs", "Add FAQ"])
 
     with tab1:
@@ -476,8 +342,8 @@ elif nav == "📋 FAQs":
                 st.markdown(f'<div class="section-header">{cat}</div>', unsafe_allow_html=True)
                 for faq in items:
                     with st.expander(f"❓ {faq['question']}"):
-                        st.markdown(f'<div style="color:#555; line-height:1.7;">{faq["answer"]}</div>', unsafe_allow_html=True)
-                        if st.button(f"🗑 Delete", key=f"del_faq_{faq['id']}"):
+                        st.write(faq["answer"])
+                        if st.button("🗑 Delete", key=f"del_faq_{faq['id']}"):
                             db.delete_faq(faq["id"])
                             st.rerun()
 
@@ -496,28 +362,24 @@ elif nav == "📋 FAQs":
                 else:
                     st.error("Question and answer are required.")
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # ADMIN PAGE
 # ═══════════════════════════════════════════════════════════════════════════════
 
 elif nav == "📂 Admin":
     st.markdown("## Admin — Knowledge Management")
-    st.markdown('<p style="color:#666; font-size:0.9rem;">Upload documents, manage the knowledge base, review flagged responses.</p>', unsafe_allow_html=True)
 
     tab1, tab2, tab3, tab4 = st.tabs(["Upload Documents", "Manage Documents", "QA Review", "View Chunks"])
 
     with tab1:
         st.markdown('<div class="section-header">Upload New Document</div>', unsafe_allow_html=True)
-        st.markdown('<p style="color:#888; font-size:0.85rem;">Supported formats: PDF, Word (.docx), Excel (.xlsx), Markdown (.md). Documents are chunked and indexed automatically.</p>', unsafe_allow_html=True)
-
+        st.markdown('<p style="color:#888; font-size:0.85rem;">Supported: PDF, Word (.docx), Excel (.xlsx), Markdown (.md).</p>', unsafe_allow_html=True)
         uploaded_files = st.file_uploader(
             "Choose files",
             accept_multiple_files=True,
             type=["pdf", "docx", "xlsx", "md"],
             label_visibility="collapsed",
         )
-
         if uploaded_files:
             if st.button("🚀 Ingest All Files"):
                 progress = st.progress(0)
@@ -546,13 +408,13 @@ elif nav == "📂 Admin":
             st.info("No documents uploaded yet.")
         else:
             for doc in documents:
-                col1, col2, col3 = st.columns([4, 2, 1])
-                with col1:
-                    st.markdown(f'<div style="color:#1A1A1A; font-size:0.9rem; font-weight:500;">{doc["title"]}</div>', unsafe_allow_html=True)
-                    st.markdown(f'<div style="color:#888; font-size:0.75rem; font-family:monospace;">{doc["source_file"]} · {doc["file_type"].upper()} · v{doc["version"]}</div>', unsafe_allow_html=True)
-                with col2:
-                    st.markdown(f'<div style="color:#888; font-size:0.8rem; padding-top:0.3rem;">{doc["created_at"][:10]}</div>', unsafe_allow_html=True)
-                with col3:
+                c1, c2, c3 = st.columns([4, 2, 1])
+                with c1:
+                    st.markdown(f'<div style="color:#1A1A1A; font-weight:500;">{doc["title"]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="color:#888; font-size:0.75rem; font-family:monospace;">{doc["source_file"]} · {doc["file_type"].upper()}</div>', unsafe_allow_html=True)
+                with c2:
+                    st.markdown(f'<div style="color:#888; font-size:0.8rem;">{doc["created_at"][:10]}</div>', unsafe_allow_html=True)
+                with c3:
                     if st.button("Delete", key=f"del_doc_{doc['id']}"):
                         db.delete_document(doc["id"])
                         st.rerun()
@@ -563,45 +425,39 @@ elif nav == "📂 Admin":
         all_feedback = db.get_all_feedback()
         negative = [f for f in all_feedback if f["rating"] == -1]
         if not negative:
-            st.success("✅ No flagged responses — all good!")
+            st.success("✅ No flagged responses.")
         else:
             unreviewed = [f for f in negative if not f["reviewed"]]
-            reviewed = [f for f in negative if f["reviewed"]]
             if unreviewed:
-                st.markdown(f'<p style="color:#dc2626; font-size:0.85rem;">⚠️ {len(unreviewed)} unreviewed flagged response(s)</p>', unsafe_allow_html=True)
+                st.markdown(f'<p style="color:#dc2626; font-size:0.85rem;">⚠️ {len(unreviewed)} unreviewed</p>', unsafe_allow_html=True)
                 for fb in unreviewed:
-                    with st.expander(f"🔴 Query: \"{fb['query'][:60]}\" · {fb['timestamp'][:10]}"):
-                        st.markdown(f'**Query:** {fb["query"]}')
-                        st.markdown(f'**Response snippet:** {fb["result_snippet"]}')
-                        if st.button("✅ Mark as Reviewed", key=f"review_{fb['id']}"):
+                    with st.expander(f"🔴 {fb['query'][:60]} · {fb['timestamp'][:10]}"):
+                        st.write(f"**Query:** {fb['query']}")
+                        st.write(f"**Snippet:** {fb['result_snippet']}")
+                        if st.button("✅ Mark Reviewed", key=f"review_{fb['id']}"):
                             db.mark_feedback_reviewed(fb["id"])
                             st.rerun()
-            if reviewed:
-                st.markdown(f'<p style="color:#888; font-size:0.8rem;">{len(reviewed)} previously reviewed</p>', unsafe_allow_html=True)
 
     with tab4:
         st.markdown('<div class="section-header">Indexed Chunks</div>', unsafe_allow_html=True)
-        st.markdown('<p style="color:#777; font-size:0.85rem;">Browse every chunk stored in the knowledge base.</p>', unsafe_allow_html=True)
         documents = db.get_all_documents()
         if not documents:
             st.info("No documents indexed yet.")
         else:
             doc_options = {f"{d['title']} ({d['source_file']})": d['id'] for d in documents}
-            selected_doc_label = st.selectbox("Filter by document", ["All documents"] + list(doc_options.keys()), label_visibility="collapsed")
-            chunk_search = st.text_input("Search within chunks", placeholder="Filter chunks by keyword...", label_visibility="collapsed")
+            selected = st.selectbox("Filter by document", ["All documents"] + list(doc_options.keys()), label_visibility="collapsed")
+            chunk_search = st.text_input("Search within chunks", placeholder="Filter by keyword...", label_visibility="collapsed")
             all_chunks = db.get_all_chunks()
-            if selected_doc_label != "All documents":
-                doc_id = doc_options[selected_doc_label]
+            if selected != "All documents":
+                doc_id = doc_options[selected]
                 all_chunks = [c for c in all_chunks if c.get("document_id") == doc_id]
             if chunk_search.strip():
-                term = chunk_search.lower()
-                all_chunks = [c for c in all_chunks if term in c["content"].lower()]
-            st.markdown(f'<p style="font-family:monospace; font-size:0.75rem; color:#888; margin-bottom:1rem;">{len(all_chunks)} chunk(s) found</p>', unsafe_allow_html=True)
+                all_chunks = [c for c in all_chunks if chunk_search.lower() in c["content"].lower()]
+            st.markdown(f'<p style="font-family:monospace; font-size:0.75rem; color:#888;">{len(all_chunks)} chunk(s)</p>', unsafe_allow_html=True)
             for chunk in all_chunks:
-                label = f"#{chunk.get('chunk_index', 0)+1}  ·  {chunk['title']}  ·  {len(chunk['content'].split())} words"
+                label = f"#{chunk.get('chunk_index',0)+1} · {chunk['title']} · {len(chunk['content'].split())} words"
                 with st.expander(label):
-                    st.markdown(chunk["content"])
-
+                    st.write(chunk["content"])
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ANALYTICS PAGE
@@ -609,31 +465,22 @@ elif nav == "📂 Admin":
 
 elif nav == "📊 Analytics":
     st.markdown("## Analytics")
-    st.markdown('<p style="color:#666; font-size:0.9rem;">Search behaviour, knowledge gaps, and feedback insights.</p>', unsafe_allow_html=True)
 
     feedback_summary = db.get_feedback_summary()
     top_queries = db.get_top_queries(10)
     no_result_queries = db.get_no_result_queries(10)
     search_volume = db.get_search_volume_by_day(14)
-    doc_count = len(db.get_all_documents())
-    chunk_count = db.get_chunk_count()
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    metrics = [
-        (c1, doc_count, "Documents"),
-        (c2, chunk_count, "Chunks Indexed"),
-        (c3, feedback_summary["total"], "Total Feedback"),
+    for col, val, label in [
+        (c1, len(db.get_all_documents()), "Documents"),
+        (c2, db.get_chunk_count(), "Chunks"),
+        (c3, feedback_summary["total"], "Feedback"),
         (c4, feedback_summary["positive"], "👍 Positive"),
         (c5, feedback_summary["negative"], "👎 Flagged"),
-    ]
-    for col, val, label in metrics:
+    ]:
         with col:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{val}</div>
-                <div class="metric-label">{label}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-card"><div class="metric-value">{val}</div><div class="metric-label">{label}</div></div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     col_left, col_right = st.columns(2)
@@ -641,7 +488,7 @@ elif nav == "📊 Analytics":
     with col_left:
         st.markdown('<div class="section-header">Top Search Queries</div>', unsafe_allow_html=True)
         if not top_queries:
-            st.markdown('<p style="color:#888; font-size:0.85rem;">No searches yet.</p>', unsafe_allow_html=True)
+            st.write("No searches yet.")
         else:
             max_count = max(q["count"] for q in top_queries)
             for q in top_queries:
@@ -661,7 +508,7 @@ elif nav == "📊 Analytics":
     with col_right:
         st.markdown('<div class="section-header">Knowledge Gaps (Zero Results)</div>', unsafe_allow_html=True)
         if not no_result_queries:
-            st.markdown('<p style="color:#16a34a; font-size:0.85rem;">✓ All queries returned results.</p>', unsafe_allow_html=True)
+            st.markdown('<p style="color:#16a34a;">✓ All queries returned results.</p>', unsafe_allow_html=True)
         else:
             for q in no_result_queries:
                 st.markdown(f"""
@@ -683,16 +530,16 @@ elif nav == "📊 Analytics":
     st.markdown('<div class="section-header">Recent Feedback</div>', unsafe_allow_html=True)
     all_fb = db.get_all_feedback()
     if not all_fb:
-        st.markdown('<p style="color:#888; font-size:0.85rem;">No feedback submitted yet.</p>', unsafe_allow_html=True)
+        st.write("No feedback yet.")
     else:
         for fb in all_fb[:10]:
             icon = "👍" if fb["rating"] == 1 else "👎"
             st.markdown(f"""
-            <div style="display:flex; gap:1rem; padding:0.6rem 0; border-bottom:1px solid #eee; align-items:flex-start;">
-                <span style="font-size:1rem; flex-shrink:0;">{icon}</span>
-                <div style="flex:1;">
+            <div style="display:flex; gap:1rem; padding:0.6rem 0; border-bottom:1px solid #eee;">
+                <span>{icon}</span>
+                <div>
                     <div style="color:#333; font-size:0.85rem;">{fb['query'][:80]}</div>
-                    <div style="color:#888; font-size:0.75rem; font-family:monospace; margin-top:0.2rem;">{fb['timestamp'][:16]}</div>
+                    <div style="color:#888; font-size:0.75rem; font-family:monospace;">{fb['timestamp'][:16]}</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
